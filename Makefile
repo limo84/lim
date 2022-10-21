@@ -10,7 +10,7 @@ LINK := -lgtk-3 -lgdk-3 -latk-1.0 -lgio-2.0 -lpangoft2-1.0 -lgdk_pixbuf-2.0 -lpa
 SOURCES := main.c functions.c
 
 all:
-	make app && ./app testfile.txt
+	make app && ./app
 
 app: $(SOURCES)
 	gcc $(SOURCES) -g -o app $(INCLUDES) $(LINK)

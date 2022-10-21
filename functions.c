@@ -4,6 +4,11 @@
 #include <stdio.h>
 
 void lim_text_buffer_load_from_file(GtkTextBuffer *buffer, char *fileName) {
+  if (!fileName) {
+    gtk_text_buffer_set_text(buffer, "", -1);
+    return;
+  }
+
   char *source = NULL;
   FILE *fp = fopen(fileName, "r");
   if (fp != NULL) {
@@ -36,7 +41,13 @@ void lim_text_buffer_load_from_file(GtkTextBuffer *buffer, char *fileName) {
   free(source);
 }
 
-void lim_text_buffer_save_to_file(GtkWidget *textView, char *fileName) {
+void lim_text_buffer_save_to_file(GtkWidget *textView, State *state) {
+  printf("FILENAME: %s\n", state->fileName);
+  char *filename;
+  char *text;
+  gboolean result;
+  GError *err;
+  GtkTextBuffer *buffer;
 
   GtkWidget *dialog;
   dialog = gtk_file_chooser_dialog_new("Abspeichern...",
@@ -45,37 +56,32 @@ void lim_text_buffer_save_to_file(GtkWidget *textView, char *fileName) {
                                        GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
                                        GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
                                        NULL);
-
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-    char *filename;
-    char *text;
-    GtkTextBuffer* buffer;
-    GtkTextIter start;
-    GtkTextIter end;
-    gboolean result;
-    GError *err;
     filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-    gtk_widget_set_sensitive (textView, FALSE);
-    buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (textView));
-    gtk_text_buffer_get_start_iter(buffer, &start);
-    gtk_text_buffer_get_end_iter(buffer, &end);
-    text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
-    gtk_text_buffer_set_modified(buffer, FALSE);
-    gtk_widget_set_sensitive (textView, TRUE);
-
-    /* set the contents of the file to the text from the buffer */
-    if (filename != NULL) {
-      result = g_file_set_contents(filename, text, -1, &err);
-    } else {
-      result = g_file_set_contents(filename, text, -1, &err);
-    }
-
-    if (result == FALSE) {
-      /* error saving file, show message to user */
-    }
-
-    g_free(text);
   }
+
+  GtkTextIter start;
+  GtkTextIter end;
+
+  gtk_widget_set_sensitive(textView, FALSE);
+  buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
+  gtk_text_buffer_get_start_iter(buffer, &start);
+  gtk_text_buffer_get_end_iter(buffer, &end);
+  text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+  gtk_text_buffer_set_modified(buffer, FALSE);
+  gtk_widget_set_sensitive(textView, TRUE);
+
+  /* set the contents of the file to the text from the buffer */
+  if (filename != NULL)
+    result = g_file_set_contents(filename, text, -1, &err);
+  else
+    result = g_file_set_contents(filename, text, -1, &err);
+
+  if (result == FALSE) {
+    /* error saving file, show message to user */
+  }
+
+  g_free(text);
   gtk_widget_destroy(dialog);
 }
 

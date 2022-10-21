@@ -1,0 +1,6 @@
+{
+  "files.associations": {
+    "gtk.h": "c",
+    "array": "c"
+  }
+}

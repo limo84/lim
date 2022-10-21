@@ -1,0 +1,13 @@
+#define asd 1
+
+int main() {
+  int i = 0;
+  char c = 'c';
+  short j = 0;
+  int asdf;
+
+asdasdasdsad
+
+  return 0;
+}
+asdasd

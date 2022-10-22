@@ -4,11 +4,11 @@
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 
-typedef struct State {
+typedef struct LimState {
   GtkWidget* window;
   GtkWidget* textView;
   char* fileName;
-} State;
+} LimState;
 
 
 #endif

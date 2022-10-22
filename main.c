@@ -1,7 +1,7 @@
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 
-#include "functions.h"
+#include "lim_functions/lim_functions.h"
 #include "lim_state/lim_state.h"
 
 void load_css();
@@ -10,7 +10,7 @@ void close_window() {
   gtk_main_quit();
 }
 
-gboolean on_key_press(GtkWidget *textView, GdkEventKey *event, State* state) {
+gboolean on_key_press(GtkWidget *textView, GdkEventKey *event, LimState *state) {
   // printf("keyval: %d, %d\n", event->keyval, event->hardware_keycode);
   if ((event->type == GDK_KEY_PRESS) &&
       (event->state & GDK_CONTROL_MASK)) {
@@ -37,49 +37,47 @@ gboolean on_key_press(GtkWidget *textView, GdkEventKey *event, State* state) {
   }
 }
 
-void make_window(State *state) {
+void make_window(LimState *state) {
+  /** CREATE WINDOW */
   state->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_position(GTK_WINDOW(state->window), GTK_WIN_POS_CENTER);
   gtk_window_set_default_size(GTK_WINDOW(state->window), 400, 400);
   gtk_window_set_title(GTK_WINDOW(state->window), "lim");
 
-  g_signal_connect(state->window, "destroy", G_CALLBACK(close_window), NULL);
-  // g_signal_connect(window, "key_press_event", G_CALLBACK(on_key_press), NULL);
-
+  /** CREATE TEXTVIEW */
   state->textView = gtk_text_view_new();
   gtk_widget_set_name(state->textView, "myTV");
+  gtk_text_view_set_left_margin(GTK_TEXT_VIEW(state->textView), 5);
+  gtk_widget_set_size_request(GTK_WIDGET(state->textView), 400, 400); // ?
+
+  /** CREATE AND FILL TEXTBUFFER */
   GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(state->textView));
-  // gtk_style_context_add_class(gtk_widget_get_style_context(textView), "text");
-
-  GtkSettings *settings = gtk_widget_get_settings(state->textView);
-  g_object_set(gtk_settings_get_default(), "gtk-cursor-blink", FALSE, NULL);
-
-  g_signal_connect(state->textView, "key_press_event", G_CALLBACK(on_key_press), state);
   lim_text_buffer_load_from_file(buffer, state->fileName);
   lim_move_cursor_to(state->textView, 0, 0);
 
-  GtkTextIter start, end;
-  PangoFontDescription *font_desc;
-  GdkRGBA rgba;
-  GtkTextTag *tag;
+  /** DISABLE CURSOR BLINK */
+  GtkSettings *settings = gtk_widget_get_settings(state->textView);
+  g_object_set(gtk_settings_get_default(), "gtk-cursor-blink", FALSE, NULL);
 
-  /* Change left margin throughout the widget */
-  gtk_text_view_set_left_margin(GTK_TEXT_VIEW(state->textView), 30);
+  /** CONNECT SIGNALS */
+  g_signal_connect(state->window, "destroy", G_CALLBACK(close_window), NULL);
+  g_signal_connect(state->textView, "key_press_event", G_CALLBACK(on_key_press), state);
 
-  /* Change left margin throughout the widget */
-  gtk_text_view_set_left_margin(GTK_TEXT_VIEW(state->textView), 5);
+  /** CREATE LINE NUMBERS TEXTVIEW */
 
-  GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-  gtk_container_add(GTK_CONTAINER(state->window), vbox);
-  gtk_box_pack_start(GTK_BOX(vbox), state->textView, TRUE, TRUE, 0);
+  /** CREATE BOX AND ADD TEXTVIEW */
+  GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+  gtk_container_add(GTK_CONTAINER(state->window), hbox);
+  gtk_box_pack_start(GTK_BOX(hbox), state->textView, TRUE, TRUE, 0);
 
-  // buffer_find_words(textView);
+  /** CODE COLORING */
+  // buffer_find_words(state->textView);
 
   gtk_widget_show_all(state->window);
 }
 
 int main(int argc, char *argv[]) {
-  State *state = malloc(sizeof(State));
+  LimState *state = malloc(sizeof(LimState));
 
   gtk_init(&argc, &argv);
 
@@ -96,6 +94,7 @@ int main(int argc, char *argv[]) {
 
   state->fileName = argv[1];
   make_window(state);
+  gtk_window_resize(GTK_WINDOW(state->window), 400, 400);
 
   gtk_main();
 

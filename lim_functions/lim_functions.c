@@ -1,4 +1,4 @@
-#include "functions.h"
+#include "lim_functions.h"
 
 #include <gtk/gtk.h>
 #include <stdio.h>
@@ -41,7 +41,7 @@ void lim_text_buffer_load_from_file(GtkTextBuffer *buffer, char *fileName) {
   free(source);
 }
 
-void lim_text_buffer_save_to_file(GtkWidget *textView, State *state) {
+void lim_text_buffer_save_to_file(GtkWidget *textView, LimState *state) {
   printf("FILENAME: %s\n", state->fileName);
   char *filename;
   char *text;

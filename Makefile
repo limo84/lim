@@ -7,10 +7,10 @@ LINK := -lgtk-3 -lgdk-3 -latk-1.0 -lgio-2.0 -lpangoft2-1.0 -lgdk_pixbuf-2.0 -lpa
 			  -lpango-1.0 -lfreetype -lfontconfig -lgobject-2.0 -lgmodule-2.0 -lgthread-2.0 -lrt -lglib-2.0
 
 # SOURCES := $(shell find . -name "*.c")
-SOURCES := main.c lim_functions/lim_functions.c
+SOURCES := main.c lim_functions/lim_functions.c lim_colorize/lim_colorize.c
 
 all:
-	make app && ./app main.c
+	make app && ./app testfile.txt
 
 app: $(SOURCES)
 	gcc $(SOURCES) -g -o app $(INCLUDES) $(LINK)

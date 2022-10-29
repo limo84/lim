@@ -3,7 +3,7 @@
 #include <gtk/gtk.h>
 #include <stdio.h>
 
-void lim_text_buffer_load_from_file(GtkTextBuffer *buffer, char *fileName) {
+void lim_text_buffer_load_from_file(GtkTextBuffer *buffer, char *fileName, LimState* state) {
   if (!fileName) {
     gtk_text_buffer_set_text(buffer, "", -1);
     return;
@@ -37,6 +37,11 @@ void lim_text_buffer_load_from_file(GtkTextBuffer *buffer, char *fileName) {
   }
 
   gtk_text_buffer_set_text(buffer, source, -1);
+  char window_name[255];
+  strcpy(window_name, "lim - ");
+  strcat(window_name, state->fileName);
+  gtk_window_set_title(GTK_WINDOW(state->window), window_name);
+
   fclose(fp);
   free(source);
 }
@@ -118,61 +123,3 @@ void lim_move_cursor_by(GtkWidget *textView, int x, int y) {
   gtk_text_buffer_place_cursor(buffer, &iter);
 }
 
-void buffer_find_words(GtkWidget *textView) {
-  GtkTextIter start, end, startFile, endFile;
-  GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
-
-  GtkTextTag *tag = gtk_text_buffer_create_tag(buffer, "keyword", "foreground", "#8bcada", NULL);
-  GtkTextTag *tag2 = gtk_text_buffer_create_tag(buffer, "preprocessor", "foreground", "#D4DA8B", NULL);
-
-  const char *keywords1[] = {"int", "char", "void", "short", "return"};
-#define n_array (sizeof(keywords1) / sizeof(const char *))
-
-  const char *keywords2[] = {"#include", "#define"};
-#define k_array (sizeof(keywords2) / sizeof(const char *))
-
-  gtk_text_buffer_get_start_iter(buffer, &startFile);
-  gtk_text_buffer_get_end_iter(buffer, &endFile);
-
-  // GtkTextTag *defaultTag = gtk_text_buffer_create_tag(buffer, "default", "foreground", "#ebdbb2", NULL);
-  // gtk_text_tag_set_priority(defaultTag, 0);
-  // gtk_text_buffer_apply_tag_by_name(buffer, "default", &startFile, &endFile);
-
-  start = startFile;
-
-  while (!gtk_text_iter_starts_word(&start))
-    gtk_text_iter_forward_char(&start);
-
-  end = start;
-
-  while (gtk_text_iter_forward_word_end(&end)) {
-    const gchar *word = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
-
-    printf("%s", word);
-
-    for (int i = 0; i < n_array; i++) {
-      if (strcmp(keywords1[i], word) == 0) {
-        gtk_text_buffer_apply_tag_by_name(buffer, "keyword", &start, &end);
-
-        // gtk_text_buffer_apply_tag(buffer, tag, &start, &end);
-        printf(" <- highlight");
-      }
-    }
-
-    for (int i = 0; i < k_array; i++) {
-      if (strcmp(keywords2[i], word) == 0) {
-        gtk_text_buffer_apply_tag_by_name(buffer, "preprocessor", &start, &end);
-      }
-    }
-
-    printf("\n");
-
-    start = end;
-    while (!gtk_text_iter_starts_word(&start)) {
-      gtk_text_iter_forward_char(&start);
-      if (gtk_text_iter_equal(&start, &endFile)) {
-        return;
-      }
-    }
-  }
-}

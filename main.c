@@ -2,6 +2,7 @@
 #include <gtk/gtk.h>
 
 #include "lim_functions/lim_functions.h"
+#include "lim_colorize/lim_colorize.h"
 #include "lim_state/lim_state.h"
 
 void load_css();
@@ -48,11 +49,10 @@ void make_window(LimState *state) {
   state->textView = gtk_text_view_new();
   gtk_widget_set_name(state->textView, "myTV");
   gtk_text_view_set_left_margin(GTK_TEXT_VIEW(state->textView), 5);
-  gtk_widget_set_size_request(GTK_WIDGET(state->textView), 400, 400); // ?
 
   /** CREATE AND FILL TEXTBUFFER */
   GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(state->textView));
-  lim_text_buffer_load_from_file(buffer, state->fileName);
+  lim_text_buffer_load_from_file(buffer, state->fileName, state);
   lim_move_cursor_to(state->textView, 0, 0);
 
   /** DISABLE CURSOR BLINK */
@@ -64,14 +64,21 @@ void make_window(LimState *state) {
   g_signal_connect(state->textView, "key_press_event", G_CALLBACK(on_key_press), state);
 
   /** CREATE LINE NUMBERS TEXTVIEW */
+  // todo
 
-  /** CREATE BOX AND ADD TEXTVIEW */
+  /** CREATE SCROLLED WINDOW AND ADD TEXTVIEW */
+  GtkWidget *scrolledWindow = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_set_min_content_width(scrolledWindow, 1000);
+  gtk_scrolled_window_set_min_content_height(scrolledWindow, 800);
+  gtk_container_add(GTK_CONTAINER(scrolledWindow), state->textView);
+
+  /** CREATE BOX AND ADD SCROLLED WINDOW */
   GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
   gtk_container_add(GTK_CONTAINER(state->window), hbox);
-  gtk_box_pack_start(GTK_BOX(hbox), state->textView, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), scrolledWindow, TRUE, TRUE, 0);
 
   /** CODE COLORING */
-  // buffer_find_words(state->textView);
+  lim_colorize_c_file(state->textView);
 
   gtk_widget_show_all(state->window);
 }

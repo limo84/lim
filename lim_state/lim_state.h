@@ -8,6 +8,7 @@ typedef struct LimState {
   GtkWidget* window;
   GtkWidget* textView;
   char* fileName;
+  uint8_t offset;
 } LimState;
 
 

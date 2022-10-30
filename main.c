@@ -1,8 +1,8 @@
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 
-#include "lim_functions/lim_functions.h"
 #include "lim_colorize/lim_colorize.h"
+#include "lim_functions/lim_functions.h"
 #include "lim_state/lim_state.h"
 
 void load_css();
@@ -13,29 +13,60 @@ void close_window() {
 
 gboolean on_key_press(GtkWidget *textView, GdkEventKey *event, LimState *state) {
   // printf("keyval: %d, %d\n", event->keyval, event->hardware_keycode);
+  
   if ((event->type == GDK_KEY_PRESS) &&
-      (event->state & GDK_CONTROL_MASK)) {
+      (event->state == 5)) {
+    printf("state: %i, keycode: %i\n", event->state, event->keyval);
     switch (event->keyval) {
-      case 246:  // ö
-        lim_move_cursor_by(textView, 1, 0);
+      case GDK_KEY_S:
+        printf("hello\n");
+        lim_text_buffer_save_as(state);
         break;
-      case GDK_KEY_j:
-        lim_move_cursor_by(textView, -1, 0);
+      case 214:  // ö
+        lim_move_cursor_by(state, 5, 0);
         break;
-      case GDK_KEY_k:
-        lim_move_cursor_by(textView, 0, 1);
+      case GDK_KEY_J:
+        lim_move_cursor_by(state, -5, 0);
         break;
-      case GDK_KEY_l:
-        lim_move_cursor_by(textView, 0, -1);
+      case GDK_KEY_K:
+        lim_move_cursor_by(state, 0, 5);
         break;
-      case GDK_KEY_s:
-        lim_text_buffer_save_to_file(textView, state);
+      case GDK_KEY_L:
+        lim_move_cursor_by(state, 0, -5);
         break;
       default:
         return FALSE;
     }
     return FALSE;
   }
+  
+  if ((event->type == GDK_KEY_PRESS) &&
+      (event->state & GDK_CONTROL_MASK)) {
+    switch (event->keyval) {
+      case 246:  // ö
+        lim_move_cursor_by(state, 1, 0);
+        break;
+      case GDK_KEY_j:
+        lim_move_cursor_by(state, -1, 0);
+        break;
+      case GDK_KEY_k:
+        lim_move_cursor_by(state, 0, 1);
+        break;
+      case GDK_KEY_l:
+        lim_move_cursor_by(state, 0, -1);
+        break;
+      case GDK_KEY_s:
+        lim_text_buffer_save(state);
+        break;
+      default:
+        return FALSE;
+    }
+    return FALSE;
+  }
+
+  // printf("huhu: %i\n", event->state);
+
+  
 }
 
 void make_window(LimState *state) {

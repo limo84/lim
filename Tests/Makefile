@@ -10,8 +10,8 @@ LINK := -lgtk-3 -lgdk-3 -latk-1.0 -lgio-2.0 -lpangoft2-1.0 -lgdk_pixbuf-2.0 -lpa
 # SOURCES := linescols.c
 # SOURCES := search.c
 # SOURCES := tags.c
-# SOURCES := tree.c
-SOURCES := css_stuff.c
+SOURCES := tree.c
+# SOURCES := css_stuff.c
 
 all:
 	make app && ./app

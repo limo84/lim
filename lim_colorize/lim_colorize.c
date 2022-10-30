@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 void lim_colorize_c_file(GtkWidget *textView) {
+  gboolean printTokens = FALSE;
   gboolean isWord = FALSE;
   gboolean isString = FALSE;
   gboolean isComment = FALSE;
@@ -37,7 +38,11 @@ void lim_colorize_c_file(GtkWidget *textView) {
 
     if (s == ' ' || s == 10) {
       gtk_text_iter_forward_char(&start);
-      printf("%c", s);
+
+      if (printTokens) {
+        printf("%c", s);
+      }
+
       continue;
     }
 
@@ -46,7 +51,11 @@ void lim_colorize_c_file(GtkWidget *textView) {
         gtk_text_iter_forward_char(&end);
       }
       const gchar *word = gtk_text_iter_get_slice(&start, &end);
-      printf("[%s]", word);
+
+      if (printTokens) {
+        printf("[%s]", word);
+      }
+
       gtk_text_buffer_apply_tag_by_name(buffer, "preprocessor", &start, &end);
       start = end;
     }
@@ -57,7 +66,11 @@ void lim_colorize_c_file(GtkWidget *textView) {
       }
       gtk_text_iter_forward_char(&end);
       const gchar *word = gtk_text_iter_get_slice(&start, &end);
-      printf("[%s]", word);
+
+      if (printTokens) {
+        printf("[%s]", word);
+      }
+
       gtk_text_buffer_apply_tag_by_name(buffer, "string", &start, &end);
       start = end;
     }
@@ -84,11 +97,15 @@ void lim_colorize_c_file(GtkWidget *textView) {
       }
       gchar *word = gtk_text_iter_get_slice(&start, &end);
       for (int i = 0; i < keywords_size; i++) {
-        if (strcmp(keywords[i], word) == 0) {
+        if (!strcmp(keywords[i], word)) {
           gtk_text_buffer_apply_tag_by_name(buffer, "keyword", &start, &end);
         }
       }
-      printf("[%s]", word);
+
+      if (printTokens) {
+        printf("[%s]", word);
+      }
+
       start = end;
     }
 

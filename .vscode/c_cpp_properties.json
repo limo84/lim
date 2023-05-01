@@ -4,14 +4,14 @@
             "name": "Linux",
             "includePath": [
                 "${default}",
-                "/usr/include/**",
-                "/usr/lib/x86_64-linux-gnu/glib-2.0/include/**"
+                "/usr/include/gtk-3.0/**"
             ],
             "defines": [],
-            "compilerPath": "/usr/bin/clang",
+            "compilerPath": "/usr/bin/gcc",
             "cStandard": "c17",
             "cppStandard": "c++14",
-            "intelliSenseMode": "linux-clang-x64"
+            "intelliSenseMode": "linux-gcc-x64",
+            "configurationProvider": "ms-vscode.makefile-tools"
         }
     ],
     "version": 4

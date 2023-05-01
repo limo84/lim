@@ -1,5 +1,7 @@
 window {
   color: red;
+  font-family: 'JetBrainsMono Nerd Font';
+  font-size: 16px;
 }
 
 #myTV {
@@ -10,5 +12,16 @@ window {
 #myTV text {
   color: #ebdbb2;
   background-color: #282828;
+}
+
+#input {
+  color: #ebdbb2;
+  background-color: #282828;
+  border-color: #ebdbb2;
+  border-radius: 0;
+}
+
+.insertion-cursor {
+  color: white;
 }
 

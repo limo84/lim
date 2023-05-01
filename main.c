@@ -7,69 +7,84 @@
 
 void load_css();
 
-void close_window() {
+void close_window()
+{
   gtk_main_quit();
+  // asd
 }
 
-gboolean on_key_press(GtkWidget *textView, GdkEventKey *event, LimState *state) {
+gboolean on_key_press(GtkWidget *textView, GdkEventKey *event, LimState *state)
+{
   // printf("keyval: %d, %d\n", event->keyval, event->hardware_keycode);
-  
+
   if ((event->type == GDK_KEY_PRESS) &&
-      (event->state == 5)) {
+      (event->state == 5))
+  {
     printf("state: %i, keycode: %i\n", event->state, event->keyval);
-    switch (event->keyval) {
-      case GDK_KEY_S:
-        printf("hello\n");
-        lim_text_buffer_save_as(state);
-        break;
-      case 214:  // ö
-        lim_move_cursor_by(state, 5, 0);
-        break;
-      case GDK_KEY_J:
-        lim_move_cursor_by(state, -5, 0);
-        break;
-      case GDK_KEY_K:
-        lim_move_cursor_by(state, 0, 5);
-        break;
-      case GDK_KEY_L:
-        lim_move_cursor_by(state, 0, -5);
-        break;
-      default:
-        return FALSE;
+    switch (event->keyval)
+    {
+    case GDK_KEY_S:
+      printf("hello\n");
+      lim_text_buffer_save_as(state);
+      break;
+    case GDK_KEY_L:
+      lim_move_cursor_by(state, 5, 0);
+      break;
+    case GDK_KEY_J:
+      lim_move_cursor_by(state, -5, 0);
+      break;
+    case GDK_KEY_K:
+      lim_move_cursor_by(state, 0, 5);
+      break;
+    case GDK_KEY_I:
+      lim_move_cursor_by(state, 0, -5);
+      break;
+    default:
+      return FALSE;
     }
     return FALSE;
   }
-  
+
   if ((event->type == GDK_KEY_PRESS) &&
-      (event->state & GDK_CONTROL_MASK)) {
-    switch (event->keyval) {
-      case 246:  // ö
-        lim_move_cursor_by(state, 1, 0);
-        break;
-      case GDK_KEY_j:
-        lim_move_cursor_by(state, -1, 0);
-        break;
-      case GDK_KEY_k:
-        lim_move_cursor_by(state, 0, 1);
-        break;
-      case GDK_KEY_l:
-        lim_move_cursor_by(state, 0, -1);
-        break;
-      case GDK_KEY_s:
-        lim_text_buffer_save(state);
-        break;
-      default:
-        return FALSE;
+      (event->state & GDK_CONTROL_MASK))
+  {
+    switch (event->keyval)
+    {
+    case GDK_KEY_l:
+      lim_move_cursor_by(state, 1, 0);
+      break;
+    case GDK_KEY_j:
+      lim_move_cursor_by(state, -1, 0);
+      break;
+    case GDK_KEY_k:
+      lim_move_cursor_by(state, 0, 1);
+      break;
+    case GDK_KEY_i:
+      lim_move_cursor_by(state, 0, -1);
+      break;
+    case GDK_KEY_s:
+      lim_text_buffer_save(state);
+      break;
+    case GDK_KEY_o:
+      lim_open_dialog(state);
+      break;
+    case GDK_KEY_q:
+      close_window();
+      break;
+    case GDK_KEY_t:
+      printf("key pressed in textView: t\n");
+      break;
+    default:
+      return FALSE;
     }
     return FALSE;
   }
 
   // printf("huhu: %i\n", event->state);
-
-  
 }
 
-void make_window(LimState *state) {
+void make_window(LimState *state)
+{
   /** CREATE WINDOW */
   state->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_position(GTK_WINDOW(state->window), GTK_WIN_POS_CENTER);
@@ -99,8 +114,8 @@ void make_window(LimState *state) {
 
   /** CREATE SCROLLED WINDOW AND ADD TEXTVIEW */
   GtkWidget *scrolledWindow = gtk_scrolled_window_new(NULL, NULL);
-  gtk_scrolled_window_set_min_content_width(scrolledWindow, 1000);
-  gtk_scrolled_window_set_min_content_height(scrolledWindow, 800);
+  gtk_scrolled_window_set_min_content_width(GTK_SCROLLED_WINDOW(scrolledWindow), 1000);
+  gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scrolledWindow), 800);
   gtk_container_add(GTK_CONTAINER(scrolledWindow), state->textView);
 
   /** CREATE BOX AND ADD SCROLLED WINDOW */
@@ -114,16 +129,19 @@ void make_window(LimState *state) {
   gtk_widget_show_all(state->window);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   LimState *state = malloc(sizeof(LimState));
 
   gtk_init(&argc, &argv);
 
-  for (int i = 0; i < argc; i++) {
+  for (int i = 0; i < argc; i++)
+  {
     printf("%i. Parameter: %s\n", i, argv[i]);
   }
 
-  if (argc > 2) {
+  if (argc > 2)
+  {
     printf("TOO MUUCH!\n");
     exit(1);
   }
@@ -139,7 +157,8 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void load_css() {
+void load_css()
+{
   GtkCssProvider *provider;
   GdkDisplay *display;
   GdkScreen *screen;
@@ -155,7 +174,8 @@ void load_css() {
   gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
   gboolean css_successfull = gtk_css_provider_load_from_file(provider, css_fp, &error);
 
-  if (error != NULL) {
+  if (error != NULL)
+  {
     fprintf(stderr, "[ERROR]: %s\n", error->message);
     g_error_free(error);
   }

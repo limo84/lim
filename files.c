@@ -52,22 +52,19 @@ int compare(const void* a, const void* b) {
   return strcmp(s1, s2);
 }
 
-int get_file_system(char ***files, int *file_len) {
-
-  //char cwd[PATH_MAX];
+int get_file_system(const char *path, char ***files, int *file_len) {
 
   file_paths = malloc(sizeof(char*) * MAX_FILES);
+  //if (getcwd(cwd, PATH_MAX) == NULL) {
+  //  perror("getcwd");
+  //  return EXIT_FAILURE;
+  //}
+  //cwd_len = strlen(cwd) + 1;
 
-  if (getcwd(cwd, PATH_MAX) == NULL) {
-    perror("getcwd");
-    return EXIT_FAILURE;
-  }
-  cwd_len = strlen(cwd) + 1;
-
-  const char *dir = (const char*)cwd;
+  //const char *dir = (const char*)cwd;
   
-  // Walk the file tree starting from 'dir'
-  if (ftw(dir, list_callback, 16) == -1) {
+  // Walk the file tree starting from 'path'
+  if (ftw(path, list_callback, 16) == -1) {
     perror("ftw");
     free_file_paths();
     return EXIT_FAILURE;

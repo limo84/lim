@@ -9,13 +9,13 @@
 #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
-
-#include <dirent.h>
-
+#include <dirent.h> // remove
 #include <stdio.h>
+#include <unistd.h>
+
+#include "files.h"
 
 #define ASSERT(c) assert(c)
-
 #define CTRL(c) ((c) & 037)
 #define STR_Q 17
 #define LK_ENTER 10
@@ -340,6 +340,19 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   //wprintw(statArea, "\t\t\t");
 }
 
+char *get_path() {
+  #define PATH_MAX 4096 
+  char buffer[PATH_MAX];
+  if (getcwd(buffer, PATH_MAX) == NULL) {
+    perror("getcwd");
+    return NULL;
+  }
+  u16 cwd_len = strlen(buffer) + 1;
+  char *path = malloc(cwd_len);
+  strcpy(path, buffer);
+  return path;
+}
+
 void read_fs(WINDOW *popupArea) {
   Folder *folder = opendir(".");
   Entry *entry = NULL;
@@ -348,12 +361,19 @@ void read_fs(WINDOW *popupArea) {
     return;
   }
   int l = 0;
-  for (int i = 0; (entry = readdir(folder)) != NULL; i++)
+  //for (int i = 0; (entry = readdir(folder)) != NULL; i++)
   int line = 2;
   for (; (entry = readdir(folder)) != NULL; line++) {
     mvwprintw(popupArea, line, 3, "%s", entry->d_name);
   }
   closedir(folder);
+}
+
+void print_files(WINDOW *popupArea, char **files, u16 files_len) {
+  int line = 2;
+  for (int i = 0; i < files_len; i++, line++) {
+    mvwprintw(popupArea, line, 3, "%s", files[i]);
+  }
 }
 
 typedef enum {
@@ -367,9 +387,13 @@ int main(int argc, char **argv) {
   atexit((void*)endwin);
 
   struct timeval tp;
-  unsigned long millis = 1000, old_millis = 1000;
-  unsigned long delta = 1000;
+  u16 millis = 1000;
+  u16 old_millis = 1000;
+  u16 delta = 1000;
   
+  char *path = get_path();
+  printf("%s\n", path);
+
   WINDOW *lineArea;
   WINDOW *textArea;
   WINDOW *statArea;
@@ -486,8 +510,10 @@ int main(int argc, char **argv) {
     else if (c == CTRL('r')) {
       if (state == TEXT)
         state = OPEN;
-      else if (state == OPEN)
+      else if (state == OPEN) {
         state = TEXT;
+        changed = true;
+      }
     }
 
     // else if (c == 127) {

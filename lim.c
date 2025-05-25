@@ -392,7 +392,10 @@ int main(int argc, char **argv) {
   u16 delta = 1000;
   
   char *path = get_path();
-  printf("%s\n", path);
+  char **files = NULL;
+  int files_len;
+
+  get_file_system(path, &files, &files_len);
 
   WINDOW *lineArea;
   WINDOW *textArea;
@@ -528,7 +531,8 @@ int main(int argc, char **argv) {
     wrefresh(textArea);
     wmove(textArea, g.lin, g.col);
     if (state == OPEN) {
-      read_fs(popupArea);
+      print_files(popupArea, files, files_len);
+      //read_fs(popupArea);
       wrefresh(popupArea);
     }
   }

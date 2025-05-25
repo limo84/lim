@@ -1,6 +1,9 @@
+#include "files.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ftw.h>
+#include <stdint.h>
 #include <string.h>
 #include <libgen.h>
 #include <unistd.h>
@@ -9,58 +12,79 @@
 #define PATH_MAX 4096
 
 // Global array to store file paths
-char *file_paths[MAX_FILES];
+char **file_paths = NULL;
 int file_count = 0;
+char cwd[PATH_MAX];
+uint16_t cwd_len = 0;
 
 // Callback function to add file paths to the array
 int list_callback(const char *fpath, const struct stat *sb, int typeflag) {
   if (typeflag == FTW_F && file_count < MAX_FILES) {
-        // Allocate memory for the file path and store it in the array
-        file_paths[file_count] = malloc(strlen(fpath) + 1);
-        if (file_paths[file_count] == NULL) {
-            perror("malloc");
-            return -1;
-        }
-        strcpy(file_paths[file_count], fpath);
-        file_count++;
+    
+    int path_len = strlen(fpath);
+    char buffer[PATH_MAX];
+    strcpy(buffer, fpath + cwd_len);
+    //printf("%s\n", buffer);
+    // Allocate memory for the file path and store it in the array
+    file_paths[file_count] = malloc(path_len - cwd_len + 1);
+    if (file_paths[file_count] == NULL) {
+      perror("malloc");
+      return -1;
     }
-    return 0; // Continue walking the file tree
+    if (strncmp(".git/", buffer, 5) != 0) {
+      strcpy(file_paths[file_count], buffer);
+      file_count++;
+    }
+    
+  }
+  return 0; // Continue walking the file tree
 }
 
 void free_file_paths() {
-    for (int i = 0; i < file_count; i++) {
-        free(file_paths[i]);
-    }
+  for (int i = 0; i < file_count; i++) {
+    free(file_paths[i]);
+  }
 }
 
-int main(int argc, char *argv[]) {
+int compare(const void* a, const void* b) {
+  const char *s1 = *(char**) a;
+  const char *s2 = *(char**) b;
+  return strcmp(s1, s2);
+}
 
-  char cwd[PATH_MAX];
+int get_file_system(char ***files, int *file_len) {
+
+  //char cwd[PATH_MAX];
+
+  file_paths = malloc(sizeof(char*) * MAX_FILES);
 
   if (getcwd(cwd, PATH_MAX) == NULL) {
     perror("getcwd");
     return EXIT_FAILURE;
   }
-
-  printf("%s\n", cwd);
+  cwd_len = strlen(cwd) + 1;
 
   const char *dir = (const char*)cwd;
-    // Walk the file tree starting from 'dir'
-    if (ftw(dir, list_callback, 16) == -1) {
-        perror("ftw");
-        free_file_paths();
-        return EXIT_FAILURE;
-    }
-
-    // Print the file paths
-    printf("List of files:\n");
-    for (int i = 0; i < file_count; i++) {
-      char *filename = file_paths[i];
-      printf("%s\n", filename);
-    }
-
-    // Free the memory allocated for the file paths
+  
+  // Walk the file tree starting from 'dir'
+  if (ftw(dir, list_callback, 16) == -1) {
+    perror("ftw");
     free_file_paths();
+    return EXIT_FAILURE;
+  }
+  qsort(file_paths, file_count, sizeof(char*), compare);
 
-    return EXIT_SUCCESS;
+  *files = file_paths;
+  *file_len = file_count;
+  // Print the file paths
+  //printf("\nList of files:\n");
+  //for (int i = 0; i < file_count; i++) {
+    //char *filename = file_paths[i];
+    //printf("%s\n", filename);
+  //}
+
+  // Free the memory allocated for the file paths
+  // free_file_paths();
+
+  return EXIT_SUCCESS;
 }

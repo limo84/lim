@@ -321,7 +321,7 @@ void draw_line_area(GapBuffer *g, WINDOW *lineArea) {
   wrefresh(lineArea);
 }
 
-int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
+int print_status_line(WINDOW *statArea, GapBuffer *g, int c, u8 chosen_file) {
   wmove(statArea, 0, 0);
   mvwprintw(statArea, 0, 0, "last: %d, ", c);
   wprintw(statArea, "ed: (%d, %d), ", g->lin + 1, g->col + 1);
@@ -336,6 +336,7 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   wprintw(statArea, "maxl: %d, ", g->maxlines);
   wprintw(statArea, "wl: %d, ", gb_width_left(g));
   wprintw(statArea, "wr: %d, ", gb_width_right(g));
+  wprintw(statArea, "cf: %d, ", chosen_file);
   //wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
   //wprintw(statArea, "\t\t\t");
 }
@@ -369,11 +370,30 @@ void read_fs(WINDOW *popupArea) {
   closedir(folder);
 }
 
-void print_files(WINDOW *popupArea, char **files, u16 files_len) {
+void print_files(WINDOW *popupArea, char **files, u16 files_len, u8 chosen_file) {
   int line = 2;
   for (int i = 0; i < files_len; i++, line++) {
+    if (i == chosen_file)
+      wattrset(popupArea, COLOR_PAIR(4));
+    else
+      wattrset(popupArea, COLOR_PAIR(2));
+
     mvwprintw(popupArea, line, 3, "%s", files[i]);
   }
+}
+
+void open_move_up(u8 *chosen_file, bool *changed) {
+  *chosen_file -= 1;
+  *changed = true;
+}
+
+void open_move_down(u8 *chosen_file, bool *changed) {
+  *chosen_file += 1;
+  *changed = true;
+}
+
+void open_open_file(GapBuffer *g, char **files, u8 chosen_file) {
+  read_file(g, files[chosen_file]);
 }
 
 typedef enum {
@@ -394,6 +414,7 @@ int main(int argc, char **argv) {
   char *path = get_path();
   char **files = NULL;
   int files_len;
+  u8 chosen_file = 0;
 
   get_file_system(path, &files, &files_len);
 
@@ -459,11 +480,13 @@ int main(int argc, char **argv) {
     changed = false;
     // if (c == KEY_UP || c == CTRL('i')) {
     if (c == KEY_UP) {
-      gb_move_up(&g);
+      state == TEXT ? gb_move_up(&g) :
+    	open_move_up(&chosen_file, &changed);
     }
     
     else if (c == LK_DOWN) {
-      gb_move_down(&g);
+      state == TEXT ? gb_move_down(&g) :
+	open_move_down(&chosen_file, &changed);
     } 
 
     else if (c == KEY_RIGHT) {
@@ -484,18 +507,23 @@ int main(int argc, char **argv) {
     }
     
     else if (c == LK_ENTER) {
-      gb_jump(&g);
-      g.buf[g.front] = '\n';
-      g.size++;
-      g.front++;
-      g.point++;
-      g.lin += 1;
-      g.col = 0;
-      g.maxlines++;
-      draw_line_area(&g, lineArea);
+      if (state == TEXT) {
+	gb_jump(&g);
+	g.buf[g.front] = '\n';
+	g.size++;
+	g.front++;
+	g.point++;
+	g.lin += 1;
+	g.col = 0;
+	g.maxlines++;
+	draw_line_area(&g, lineArea);
   
-      gb_refresh_line_width(&g);
-      changed = true;
+	gb_refresh_line_width(&g);
+	changed = true;
+      } else {
+	open_open_file(&g, files, chosen_file);
+      }
+     
     }
     
     else if (c >= 32 && c <= 126) {
@@ -511,8 +539,10 @@ int main(int argc, char **argv) {
     }
 
     else if (c == CTRL('r')) {
-      if (state == TEXT)
+      if (state == TEXT) {
         state = OPEN;
+	changed = true;
+      }
       else if (state == OPEN) {
         state = TEXT;
         changed = true;
@@ -522,16 +552,16 @@ int main(int argc, char **argv) {
     // else if (c == 127) {
     // }
 
-    print_status_line(statArea, &g, c);
+    print_status_line(statArea, &g, c, chosen_file);
     wrefresh(statArea);
-    // draw front
-    if (changed) {
+    if (state == TEXT && changed) {
       print_text_area(textArea, &g);
     }
     wrefresh(textArea);
     wmove(textArea, g.lin, g.col);
-    if (state == OPEN) {
-      print_files(popupArea, files, files_len);
+    if (state == OPEN && changed) {
+      wclear(popupArea);
+      print_files(popupArea, files, files_len, chosen_file);
       //read_fs(popupArea);
       wrefresh(popupArea);
     }

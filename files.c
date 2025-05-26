@@ -59,7 +59,7 @@ int get_file_system(const char *path, char ***files, int *file_len) {
   //  perror("getcwd");
   //  return EXIT_FAILURE;
   //}
-  //cwd_len = strlen(cwd) + 1;
+  cwd_len = strlen(path) + 1;
 
   //const char *dir = (const char*)cwd;
   

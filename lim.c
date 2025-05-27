@@ -16,6 +16,9 @@
 #include "files.h"
 
 #define ASSERT(c) assert(c)
+#define MY_ASSERT(c, s, p) if (!(c)) { printf(s, p); exit(1); } 
+
+
 #define CTRL(c) ((c) & 037)
 #define STR_Q 17
 #define LK_ENTER 10
@@ -95,8 +98,8 @@ u32 gb_pos_offset(GapBuffer *g, i32 offset) {
 
 char gb_get_current(GapBuffer *g) {
   u32 pos = gb_pos(g);
-  ASSERT(pos >= 0);
-  ASSERT(pos < g->cap);
+  //ASSERT(pos >= 0);
+  MY_ASSERT(pos < g->cap, "HALLO %d", g->cap);
   return g->buf[pos];
 }
 
@@ -276,6 +279,13 @@ void gb_write_to_file(GapBuffer *g) {
   g->point = old_point;
 }
 
+void gb_clear_buffer(GapBuffer *g) {
+  //free(g->buf);
+  g->size = 0;
+  g->front = 0;
+  g->point = 0;
+}
+
 /************************* #EDITOR ******************************/
 
 typedef struct {
@@ -288,7 +298,7 @@ int read_file(GapBuffer *g, char* filename) {
     die("File not found\n");
   }
     
-  char buffer[1000]; // TODO seek actual number of chracters before reading to gapbuffer
+  char buffer[100000]; // TODO seek actual number of chracters before reading to gapbuffer
   g->maxlines = 1;
   char c;
   for (int i = 0; (c = fgetc(file)) != EOF; i++) {
@@ -393,7 +403,9 @@ void open_move_down(u8 *chosen_file, bool *changed) {
 }
 
 void open_open_file(GapBuffer *g, char **files, u8 chosen_file) {
+  gb_clear_buffer(g);
   read_file(g, files[chosen_file]);
+  //die("pos: %d, size: %d", gb_pos(g), g->size); 
 }
 
 typedef enum {
@@ -427,7 +439,7 @@ int main(int argc, char **argv) {
   State state = TEXT;
   GapBuffer g;
   gb_init(&g, 10000);
-  ASSERT(g.point < g.cap);
+  //ASSERT(g.point < g.cap);
  
   g.buf = calloc(g.cap, sizeof(char));
   getmaxyx(stdscr, screen.rows, screen.cols);
@@ -443,7 +455,7 @@ int main(int argc, char **argv) {
   mvwin(textArea, 0, 4);
   //vline(ACS_VLINE, screen.rows); // ??
   mvwin(statArea, screen.rows - 1, 0);
-  ASSERT(g.point < g.cap);
+  //ASSERT(g.point < g.cap);
 
   if (!has_colors()) {
     die("No Colors\n");
@@ -454,7 +466,7 @@ int main(int argc, char **argv) {
   init_pair(4, COLOR_BLACK, COLOR_RED);
   wattrset(textArea, COLOR_PAIR(1));
   wattrset(statArea, COLOR_PAIR(4));
-  ASSERT(g.point < g.cap);
+  //ASSERT(g.point < g.cap);
 
   raw();
   keypad(textArea, TRUE);
@@ -471,7 +483,7 @@ int main(int argc, char **argv) {
 
   draw_line_area(&g, lineArea);
   
-  ASSERT(g.point < g.cap);
+  //ASSERT(g.point < g.cap);
 
   int c;
   bool changed;
@@ -516,14 +528,14 @@ int main(int argc, char **argv) {
 	g.lin += 1;
 	g.col = 0;
 	g.maxlines++;
-	draw_line_area(&g, lineArea);
-  
 	gb_refresh_line_width(&g);
-	changed = true;
       } else {
 	open_open_file(&g, files, chosen_file);
+	state = TEXT;
       }
-     
+     	
+      draw_line_area(&g, lineArea);
+      changed = true;
     }
     
     else if (c >= 32 && c <= 126) {

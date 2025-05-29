@@ -1,7 +1,4 @@
-// TODO Bug in gb_backspace
 // TODO coredumps
-// TODO load file from opened editor
-// TODO list files with dirent, then choose
 
 #include <curses.h>
 #include <stdint.h>
@@ -9,12 +6,14 @@
 #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
-
-#include <dirent.h>
-
 #include <stdio.h>
+#include <unistd.h>
+
+#include "files.h"
 
 #define ASSERT(c) assert(c)
+#define MY_ASSERT(c, s, p) if (!(c)) { printf(s, p); exit(1); } 
+
 
 #define CTRL(c) ((c) & 037)
 #define STR_Q 17
@@ -49,6 +48,8 @@ void die(const char *format, ...) {
 }
 
 /******************** #GAPBUFFER *******************************/
+
+#define INIT_CAP 100000
 
 typedef struct {
   char *buf;
@@ -92,8 +93,8 @@ u32 gb_pos_offset(GapBuffer *g, i32 offset) {
 
 char gb_get_current(GapBuffer *g) {
   u32 pos = gb_pos(g);
-  ASSERT(pos >= 0);
-  ASSERT(pos < g->cap);
+  //ASSERT(pos >= 0);
+  MY_ASSERT(pos < g->cap, "HALLO %d", g->cap);
   return g->buf[pos];
 }
 
@@ -273,6 +274,13 @@ void gb_write_to_file(GapBuffer *g) {
   g->point = old_point;
 }
 
+void gb_clear_buffer(GapBuffer *g) {
+  //free(g->buf);
+  g->size = 0;
+  g->front = 0;
+  g->point = 0;
+}
+
 /************************* #EDITOR ******************************/
 
 typedef struct {
@@ -280,21 +288,30 @@ typedef struct {
 } Screen;
 
 int read_file(GapBuffer *g, char* filename) {
+
+  g->size = 0;
+  g->front = 0;
+  g->point = 0;
+  g->line_width = 0;
+  g->lin = 0;
+  g->col = 0;
+  g->maxlines = 1;
+
   FILE *file = fopen(filename, "r");
   if (!file) {
     die("File not found\n");
   }
     
-  char buffer[1000]; // TODO seek actual number of chracters before reading to gapbuffer
-  g->maxlines = 1;
+  char buffer[100000]; // TODO seek actual number of chracters before reading to gapbuffer
   char c;
-  for (int i = 0; (c = fgetc(file)) != EOF; i++) {
+  int i = 0;
+  for (; (c = fgetc(file)) != EOF; i++) {
     buffer[i] = c;
     if (c == 10) {
       g->maxlines++;
     }
   }
-  g->size = strlen(buffer);
+  g->size = i;
   memmove(g->buf + g->cap - g->size, buffer, g->size);
   gb_refresh_line_width(g);
   return 0;
@@ -318,7 +335,7 @@ void draw_line_area(GapBuffer *g, WINDOW *lineArea) {
   wrefresh(lineArea);
 }
 
-int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
+int print_status_line(WINDOW *statArea, GapBuffer *g, int c, u8 chosen_file) {
   wmove(statArea, 0, 0);
   mvwprintw(statArea, 0, 0, "last: %d, ", c);
   wprintw(statArea, "ed: (%d, %d), ", g->lin + 1, g->col + 1);
@@ -327,15 +344,61 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   //wprintw(statArea, "front: %d, ", g->front);
   //wprintw(statArea, "C: %d, ", gb_get_current(g));
   //wprintw(statArea, "point: %d, ", g->point);
-  //wprintw(statArea, "size: %d, ", g->size);
+  wprintw(statArea, "size: %d, ", g->size);
   //wprintw(statArea, "lstart: %d, ", g->line_start);
   //wprintw(statArea, "lend: %d, ", g->line_end);
   wprintw(statArea, "maxl: %d, ", g->maxlines);
   wprintw(statArea, "wl: %d, ", gb_width_left(g));
   wprintw(statArea, "wr: %d, ", gb_width_right(g));
+  wprintw(statArea, "cf: %d, ", chosen_file);
   //wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
   //wprintw(statArea, "\t\t\t");
 }
+
+char *get_path() {
+  #define PATH_MAX 4096 
+  char buffer[PATH_MAX];
+  if (getcwd(buffer, PATH_MAX) == NULL) {
+    perror("getcwd");
+    return NULL;
+  }
+  u16 cwd_len = strlen(buffer) + 1;
+  char *path = malloc(cwd_len);
+  strcpy(path, buffer);
+  return path;
+}
+
+void print_files(WINDOW *popupArea, char **files, u16 files_len, u8 chosen_file) {
+  int line = 2;
+  for (int i = 0; i < files_len; i++, line++) {
+    if (i == chosen_file)
+      wattrset(popupArea, COLOR_PAIR(4));
+    else
+      wattrset(popupArea, COLOR_PAIR(2));
+
+    mvwprintw(popupArea, line, 3, "%s", files[i]);
+  }
+}
+
+void open_move_up(u8 *chosen_file, u16 files_len, bool *changed) {
+  *chosen_file = (*chosen_file + files_len - 1) % files_len;
+  *changed = true;
+}
+
+void open_move_down(u8 *chosen_file, u16 files_len, bool *changed) {
+  *chosen_file = (*chosen_file + 1) % files_len;
+  *changed = true;
+}
+
+void open_open_file(GapBuffer *g, char **files, u8 chosen_file) {
+  gb_clear_buffer(g);
+  read_file(g, files[chosen_file]);
+  //die("pos: %d, size: %d", gb_pos(g), g->size); 
+}
+
+typedef enum {
+  TEXT, OPEN
+} State;
 
 int main(int argc, char **argv) {
 
@@ -344,28 +407,45 @@ int main(int argc, char **argv) {
   atexit((void*)endwin);
 
   struct timeval tp;
-  unsigned long millis = 1000, old_millis = 1000;
-  unsigned long delta = 1000;
+  u16 millis = 1000;
+  u16 old_millis = 1000;
+  u16 delta = 1000;
   
+  char *path = get_path();
+  char **files = NULL;
+  int files_len;
+  u8 chosen_file = 0;
+
+  get_file_system(path, &files, &files_len);
+
   WINDOW *lineArea;
   WINDOW *textArea;
   WINDOW *statArea;
+  WINDOW *popupArea;
 
   Screen screen;
+  State state = TEXT;
   GapBuffer g;
-  gb_init(&g, 10000);
-  ASSERT(g.point < g.cap);
+  gb_init(&g, INIT_CAP);
+  //ASSERT(g.point < g.cap);
  
   g.buf = calloc(g.cap, sizeof(char));
   getmaxyx(stdscr, screen.rows, screen.cols);
   lineArea = newwin(screen.rows - 1, 4, 0, 0);
   textArea = newwin(screen.rows - 1, screen.cols - 4, 0, 0);
   statArea = newwin(1, screen.cols, 0, 0);
+  popupArea = newwin(5, 30, 10, 10);
+  
+  scrollok(textArea, true);
+  scrollok(lineArea, true);
+  wresize(popupArea, 30, 60);
+  wbkgd(popupArea, COLOR_PAIR(2));
+  box(popupArea, ACS_VLINE, ACS_HLINE);
   
   mvwin(textArea, 0, 4);
   //vline(ACS_VLINE, screen.rows); // ??
   mvwin(statArea, screen.rows - 1, 0);
-  ASSERT(g.point < g.cap);
+  //ASSERT(g.point < g.cap);
 
   if (!has_colors()) {
     die("No Colors\n");
@@ -376,7 +456,7 @@ int main(int argc, char **argv) {
   init_pair(4, COLOR_BLACK, COLOR_RED);
   wattrset(textArea, COLOR_PAIR(1));
   wattrset(statArea, COLOR_PAIR(4));
-  ASSERT(g.point < g.cap);
+  //ASSERT(g.point < g.cap);
 
   raw();
   keypad(textArea, TRUE);
@@ -393,7 +473,7 @@ int main(int argc, char **argv) {
 
   draw_line_area(&g, lineArea);
   
-  ASSERT(g.point < g.cap);
+  //ASSERT(g.point < g.cap);
 
   int c;
   bool changed;
@@ -402,11 +482,13 @@ int main(int argc, char **argv) {
     changed = false;
     // if (c == KEY_UP || c == CTRL('i')) {
     if (c == KEY_UP) {
-      gb_move_up(&g);
+      state == TEXT ? gb_move_up(&g) :
+    	open_move_up(&chosen_file, files_len, &changed);
     }
     
     else if (c == LK_DOWN) {
-      gb_move_down(&g);
+      state == TEXT ? gb_move_down(&g) :
+	open_move_down(&chosen_file, files_len, &changed);
     } 
 
     else if (c == KEY_RIGHT) {
@@ -427,17 +509,22 @@ int main(int argc, char **argv) {
     }
     
     else if (c == LK_ENTER) {
-      gb_jump(&g);
-      g.buf[g.front] = '\n';
-      g.size++;
-      g.front++;
-      g.point++;
-      g.lin += 1;
-      g.col = 0;
-      g.maxlines++;
+      if (state == TEXT) {
+	gb_jump(&g);
+	g.buf[g.front] = '\n';
+	g.size++;
+	g.front++;
+	g.point++;
+	g.lin += 1;
+	g.col = 0;
+	g.maxlines++;
+	gb_refresh_line_width(&g);
+      } else {
+	open_open_file(&g, files, chosen_file);
+	state = TEXT;
+      }
+     	
       draw_line_area(&g, lineArea);
-  
-      gb_refresh_line_width(&g);
       changed = true;
     }
     
@@ -453,17 +540,33 @@ int main(int argc, char **argv) {
       changed = true;
     }
 
+    else if (c == CTRL('r')) {
+      if (state == TEXT) {
+        state = OPEN;
+	changed = true;
+      }
+      else if (state == OPEN) {
+        state = TEXT;
+        changed = true;
+      }
+    }
+
     // else if (c == 127) {
     // }
 
-    print_status_line(statArea, &g, c);
+    print_status_line(statArea, &g, c, chosen_file);
     wrefresh(statArea);
-    // draw front
-    if (changed) {
+    if (state == TEXT && changed) {
       print_text_area(textArea, &g);
     }
     wrefresh(textArea);
     wmove(textArea, g.lin, g.col);
+    if (state == OPEN && changed) {
+      wclear(popupArea);
+      print_files(popupArea, files, files_len, chosen_file);
+      //read_fs(popupArea);
+      wrefresh(popupArea);
+    }
   }
   
   clear();

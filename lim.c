@@ -1,7 +1,4 @@
-// TODO Bug in gb_backspace
 // TODO coredumps
-// TODO load file from opened editor
-// TODO list files with dirent, then choose
 
 #include <curses.h>
 #include <stdint.h>
@@ -9,7 +6,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
-#include <dirent.h> // remove
 #include <stdio.h>
 #include <unistd.h>
 
@@ -40,9 +36,6 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 
-typedef DIR Folder;
-typedef struct dirent Entry;
-
 // ********************* #MISC *********************************/
 
 void die(const char *format, ...) {
@@ -55,6 +48,8 @@ void die(const char *format, ...) {
 }
 
 /******************** #GAPBUFFER *******************************/
+
+#define INIT_CAP 100000
 
 typedef struct {
   char *buf;
@@ -293,21 +288,30 @@ typedef struct {
 } Screen;
 
 int read_file(GapBuffer *g, char* filename) {
+
+  g->size = 0;
+  g->front = 0;
+  g->point = 0;
+  g->line_width = 0;
+  g->lin = 0;
+  g->col = 0;
+  g->maxlines = 1;
+
   FILE *file = fopen(filename, "r");
   if (!file) {
     die("File not found\n");
   }
     
   char buffer[100000]; // TODO seek actual number of chracters before reading to gapbuffer
-  g->maxlines = 1;
   char c;
-  for (int i = 0; (c = fgetc(file)) != EOF; i++) {
+  int i = 0;
+  for (; (c = fgetc(file)) != EOF; i++) {
     buffer[i] = c;
     if (c == 10) {
       g->maxlines++;
     }
   }
-  g->size = strlen(buffer);
+  g->size = i;
   memmove(g->buf + g->cap - g->size, buffer, g->size);
   gb_refresh_line_width(g);
   return 0;
@@ -340,7 +344,7 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, int c, u8 chosen_file) {
   //wprintw(statArea, "front: %d, ", g->front);
   //wprintw(statArea, "C: %d, ", gb_get_current(g));
   //wprintw(statArea, "point: %d, ", g->point);
-  //wprintw(statArea, "size: %d, ", g->size);
+  wprintw(statArea, "size: %d, ", g->size);
   //wprintw(statArea, "lstart: %d, ", g->line_start);
   //wprintw(statArea, "lend: %d, ", g->line_end);
   wprintw(statArea, "maxl: %d, ", g->maxlines);
@@ -364,22 +368,6 @@ char *get_path() {
   return path;
 }
 
-void read_fs(WINDOW *popupArea) {
-  Folder *folder = opendir(".");
-  Entry *entry = NULL;
-  
-  if (!folder) {
-    return;
-  }
-  int l = 0;
-  //for (int i = 0; (entry = readdir(folder)) != NULL; i++)
-  int line = 2;
-  for (; (entry = readdir(folder)) != NULL; line++) {
-    mvwprintw(popupArea, line, 3, "%s", entry->d_name);
-  }
-  closedir(folder);
-}
-
 void print_files(WINDOW *popupArea, char **files, u16 files_len, u8 chosen_file) {
   int line = 2;
   for (int i = 0; i < files_len; i++, line++) {
@@ -392,13 +380,13 @@ void print_files(WINDOW *popupArea, char **files, u16 files_len, u8 chosen_file)
   }
 }
 
-void open_move_up(u8 *chosen_file, bool *changed) {
-  *chosen_file -= 1;
+void open_move_up(u8 *chosen_file, u16 files_len, bool *changed) {
+  *chosen_file = (*chosen_file + files_len - 1) % files_len;
   *changed = true;
 }
 
-void open_move_down(u8 *chosen_file, bool *changed) {
-  *chosen_file += 1;
+void open_move_down(u8 *chosen_file, u16 files_len, bool *changed) {
+  *chosen_file = (*chosen_file + 1) % files_len;
   *changed = true;
 }
 
@@ -438,7 +426,7 @@ int main(int argc, char **argv) {
   Screen screen;
   State state = TEXT;
   GapBuffer g;
-  gb_init(&g, 10000);
+  gb_init(&g, INIT_CAP);
   //ASSERT(g.point < g.cap);
  
   g.buf = calloc(g.cap, sizeof(char));
@@ -446,8 +434,10 @@ int main(int argc, char **argv) {
   lineArea = newwin(screen.rows - 1, 4, 0, 0);
   textArea = newwin(screen.rows - 1, screen.cols - 4, 0, 0);
   statArea = newwin(1, screen.cols, 0, 0);
-  
   popupArea = newwin(5, 30, 10, 10);
+  
+  scrollok(textArea, true);
+  scrollok(lineArea, true);
   wresize(popupArea, 30, 60);
   wbkgd(popupArea, COLOR_PAIR(2));
   box(popupArea, ACS_VLINE, ACS_HLINE);
@@ -493,12 +483,12 @@ int main(int argc, char **argv) {
     // if (c == KEY_UP || c == CTRL('i')) {
     if (c == KEY_UP) {
       state == TEXT ? gb_move_up(&g) :
-    	open_move_up(&chosen_file, &changed);
+    	open_move_up(&chosen_file, files_len, &changed);
     }
     
     else if (c == LK_DOWN) {
       state == TEXT ? gb_move_down(&g) :
-	open_move_down(&chosen_file, &changed);
+	open_move_down(&chosen_file, files_len, &changed);
     } 
 
     else if (c == KEY_RIGHT) {

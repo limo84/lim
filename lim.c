@@ -1,6 +1,6 @@
 // TODO coredumps
 
-#include <curses.h>
+#include <ncurses.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdarg.h>

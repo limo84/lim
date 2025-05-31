@@ -1,14 +1,15 @@
 // TODO
 //
-// scroll linePad 
-// move cursor to textPad at start
-// dont show cursor in popup
-// make popup nicer
-// change controls
-// create readme
+// [X] scroll linePad 
+// [ ] move cursor to textPad at start
+// [ ] dont show cursor in popup
+// [ ] make popup nicer
+// [ ] change controls
+// [ ] create readme
+// [ ] make statusLine optional
 //
-// increase buffer when necessary
-// increase pad size when necessary
+// [ ] increase buffer when necessary
+// [ ] increase pad size when necessary
 // 
 
 #include "gap_buffer.c"
@@ -71,23 +72,24 @@ void draw_line_area(GapBuffer *g, WINDOW *lineArea) {
 
 int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c, u8 chosen_file) {
   wmove(statArea, 0, 0);
-  mvwprintw(statArea, 0, 0, "last: %d, ", c);
+  //wprintw(statArea, "last: %d, ", c);
   wprintw(statArea, "ed: (%d, %d), ", g->lin + 1, g->col + 1);
   //wprintw(statArea, "width: %d, ", g->line_width);
-  wprintw(statArea, "pos: %d, ", gb_pos(g));
+  //wprintw(statArea, "pos: %d, ", gb_pos(g));
   //wprintw(statArea, "front: %d, ", g->front);
   //wprintw(statArea, "C: %d, ", gb_get_current(g));
   //wprintw(statArea, "point: %d, ", g->point);
-  wprintw(statArea, "size: %d, ", g->size);
-  wprintw(statArea, "s.line: %d, ", e->screen_line);
+  //wprintw(statArea, "size: %d, ", g->size);
+  wprintw(statArea, "e.line: %d, ", e->screen_line);
+  wprintw(statArea, "e.pad_pos: %d, ", e->pad_pos);
   //wprintw(statArea, "lstart: %d, ", g->line_start);
   //wprintw(statArea, "lend: %d, ", g->line_end);
-  wprintw(statArea, "maxl: %d, ", g->maxlines);
-  wprintw(statArea, "wl: %d, ", gb_width_left(g));
-  wprintw(statArea, "wr: %d, ", gb_width_right(g));
-  wprintw(statArea, "cf: %d, ", chosen_file);
+  //wprintw(statArea, "maxl: %d, ", g->maxlines);
+  //wprintw(statArea, "wl: %d, ", gb_width_left(g));
+  //wprintw(statArea, "wr: %d, ", gb_width_right(g));
+  //wprintw(statArea, "cf: %d, ", chosen_file);
   //wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
-  //wprintw(statArea, "\t\t\t");
+  wprintw(statArea, "\t\t\t");
 }
 
 char *get_path() {
@@ -171,7 +173,7 @@ int main(int argc, char **argv) {
   getmaxyx(stdscr, e.screen_y, e.screen_x);
   //die("y: %d, x: %d\n", e.screen_y, e.screen_x);
   e.screen_line = 0;
-  lineArea = newwin(e.screen_y - 1, 4, 0, 0);
+  lineArea = newpad(1000, 4);
   textPad = newpad(1000, e.screen_x - 4);
   statArea = newwin(1, e.screen_x, 0, 0);
   popupArea = newwin(5, 30, 10, 10);
@@ -205,16 +207,17 @@ int main(int argc, char **argv) {
   
   if (argc > 1) {
     read_file(&g, argv[1]);
+    draw_line_area(&g, lineArea);
     print_text_area(textPad, &g);
     wmove(textPad, 0, 0);
     refresh();
+    prefresh(lineArea, e.pad_pos, 0, 0, 0, e.screen_y - 2, 4);
     prefresh(textPad, e.pad_pos, 0, 0, 4, e.screen_y - 2, e.screen_x - 1);
   }
   //print_status_line(statArea, &g, 0);
   wrefresh(statArea);
   wmove(textPad, 0, 0);
 
-  draw_line_area(&g, lineArea);
   
   //ASSERT(g.point < g.cap);
 
@@ -321,7 +324,9 @@ int main(int argc, char **argv) {
     }
     refresh();
     wmove(textPad, g.lin, g.col);
+    prefresh(lineArea, e.pad_pos, 0, 0, 0, e.screen_y - 2, 4);
     prefresh(textPad, e.pad_pos, 0, 0, 4, e.screen_y - 2, e.screen_x - 1);
+
     if (state == OPEN && changed) {
       wclear(popupArea);
       print_files(popupArea, files, files_len, chosen_file);

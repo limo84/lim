@@ -1,11 +1,25 @@
+// TODO
+//
+// scroll linePad 
+// move cursor to textPad at start
+// dont show cursor in popup
+// make popup nicer
+// change controls
+// create readme
+//
+// increase buffer when necessary
+// increase pad size when necessary
+// 
+
 #include "gap_buffer.c"
 
 /************************* #EDITOR ******************************/
 
 typedef struct {
-  uint16_t rows, cols;
-  u8 line;
-} Screen;
+  uint16_t screen_y, screen_x;
+  u8 screen_line;
+  u32 pad_pos;
+} Editor;
 
 int read_file(GapBuffer *g, char* filename) {
 
@@ -49,13 +63,13 @@ void print_text_area(WINDOW *textArea, GapBuffer *g) {
 
 void draw_line_area(GapBuffer *g, WINDOW *lineArea) {
   wclear(lineArea);
-  for (int i = 1; i < g->maxlines; i++) { 
+  for (int i = 0; i < g->maxlines; i++) {
     mvwprintw(lineArea, i - 1, 0, "%d", i);
   }
   wrefresh(lineArea);
 }
 
-int print_status_line(WINDOW *statArea, GapBuffer *g, Screen *s, int c, u8 chosen_file) {
+int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c, u8 chosen_file) {
   wmove(statArea, 0, 0);
   mvwprintw(statArea, 0, 0, "last: %d, ", c);
   wprintw(statArea, "ed: (%d, %d), ", g->lin + 1, g->col + 1);
@@ -65,7 +79,7 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, Screen *s, int c, u8 chose
   //wprintw(statArea, "C: %d, ", gb_get_current(g));
   //wprintw(statArea, "point: %d, ", g->point);
   wprintw(statArea, "size: %d, ", g->size);
-  wprintw(statArea, "s.line: %d, ", s->line);
+  wprintw(statArea, "s.line: %d, ", e->screen_line);
   //wprintw(statArea, "lstart: %d, ", g->line_start);
   //wprintw(statArea, "lend: %d, ", g->line_end);
   wprintw(statArea, "maxl: %d, ", g->maxlines);
@@ -147,20 +161,21 @@ int main(int argc, char **argv) {
   WINDOW *statArea;
   WINDOW *popupArea;
 
-  Screen screen;
+  Editor e;
   State state = TEXT;
   GapBuffer g;
   gb_init(&g, INIT_CAP);
   //ASSERT(g.point < g.cap);
  
   g.buf = calloc(g.cap, sizeof(char));
-  getmaxyx(stdscr, screen.rows, screen.cols);
-  screen.line = 0;
-  lineArea = newwin(screen.rows - 1, 4, 0, 0);
-  textPad = newpad(1000, screen.cols - 4);
-  statArea = newwin(1, screen.cols, 0, 0);
+  getmaxyx(stdscr, e.screen_y, e.screen_x);
+  //die("y: %d, x: %d\n", e.screen_y, e.screen_x);
+  e.screen_line = 0;
+  lineArea = newwin(e.screen_y - 1, 4, 0, 0);
+  textPad = newpad(1000, e.screen_x - 4);
+  statArea = newwin(1, e.screen_x, 0, 0);
   popupArea = newwin(5, 30, 10, 10);
-  u16 pad_pos = 0;
+  e.pad_pos = 0;
   
   //scrollok(textArea, true);
   //scrollok(lineArea, true);
@@ -169,7 +184,7 @@ int main(int argc, char **argv) {
   
   //mvwin(textArea, 0, 4);
   //vline(ACS_VLINE, screen.rows); // ??
-  mvwin(statArea, screen.rows - 1, 0);
+  mvwin(statArea, e.screen_y - 1, 0);
   //ASSERT(g.point < g.cap);
 
   if (!has_colors()) {
@@ -193,7 +208,7 @@ int main(int argc, char **argv) {
     print_text_area(textPad, &g);
     wmove(textPad, 0, 0);
     refresh();
-    prefresh(textPad, pad_pos, 0, 0, 4, screen.rows - 2, screen.cols - 1);
+    prefresh(textPad, e.pad_pos, 0, 0, 4, e.screen_y - 2, e.screen_x - 1);
   }
   //print_status_line(statArea, &g, 0);
   wrefresh(statArea);
@@ -212,11 +227,11 @@ int main(int argc, char **argv) {
     if (c == KEY_UP) {
       if (state == TEXT && gb_move_up(&g)) {
         // gb_move_up(&g);
-        if (screen.line <= 8 && pad_pos > 0) {
-          pad_pos--;
+        if (e.screen_line <= 8 && e.pad_pos > 0) {
+          e.pad_pos--;
         }
         else {
-          screen.line--;
+          e.screen_line--;
         }
       }
       else
@@ -225,11 +240,11 @@ int main(int argc, char **argv) {
     
     else if (c == LK_DOWN) {
       if (state == TEXT && gb_move_down(&g)) {
-        if (screen.line >= screen.rows - 8) {
-          pad_pos++;
+        if (e.screen_line >= e.screen_y - 8) {
+          e.pad_pos++;
         }
         else {
-          screen.line++;
+          e.screen_line++;
         }
       }
       else
@@ -299,14 +314,14 @@ int main(int argc, char **argv) {
     // else if (c == 127) {
     // }
 
-    print_status_line(statArea, &g, &screen, c, chosen_file);
+    print_status_line(statArea, &g, &e, c, chosen_file);
     wrefresh(statArea);
     if (state == TEXT && changed) {
       print_text_area(textPad, &g);
     }
     refresh();
     wmove(textPad, g.lin, g.col);
-    prefresh(textPad, pad_pos, 0, 0, 4, screen.rows - 2, screen.cols - 1);
+    prefresh(textPad, e.pad_pos, 0, 0, 4, e.screen_y - 2, e.screen_x - 1);
     if (state == OPEN && changed) {
       wclear(popupArea);
       print_files(popupArea, files, files_len, chosen_file);

@@ -94,7 +94,7 @@ u32 gb_pos_offset(GapBuffer *g, i32 offset) {
 char gb_get_current(GapBuffer *g) {
   u32 pos = gb_pos(g);
   //ASSERT(pos >= 0);
-  MY_ASSERT(pos < g->cap, "HALLO %d", g->cap);
+  MY_ASSERT(pos < g->cap, "g->cap: %d", g->cap);
   return g->buf[pos];
 }
 
@@ -285,6 +285,7 @@ void gb_clear_buffer(GapBuffer *g) {
 
 typedef struct {
   uint16_t rows, cols;
+  u8 line;
 } Screen;
 
 int read_file(GapBuffer *g, char* filename) {
@@ -419,7 +420,7 @@ int main(int argc, char **argv) {
   get_file_system(path, &files, &files_len);
 
   WINDOW *lineArea;
-  WINDOW *textArea;
+  WINDOW *textPad;
   WINDOW *statArea;
   WINDOW *popupArea;
 
@@ -431,18 +432,19 @@ int main(int argc, char **argv) {
  
   g.buf = calloc(g.cap, sizeof(char));
   getmaxyx(stdscr, screen.rows, screen.cols);
+  screen.line = 0;
   lineArea = newwin(screen.rows - 1, 4, 0, 0);
-  textArea = newwin(screen.rows - 1, screen.cols - 4, 0, 0);
+  textPad = newpad(1000, screen.cols - 4);
   statArea = newwin(1, screen.cols, 0, 0);
   popupArea = newwin(5, 30, 10, 10);
+  u16 pad_pos = 0;
   
-  scrollok(textArea, true);
-  scrollok(lineArea, true);
+  //scrollok(textArea, true);
+  //scrollok(lineArea, true);
   wresize(popupArea, 30, 60);
-  wbkgd(popupArea, COLOR_PAIR(2));
   box(popupArea, ACS_VLINE, ACS_HLINE);
   
-  mvwin(textArea, 0, 4);
+  //mvwin(textArea, 0, 4);
   //vline(ACS_VLINE, screen.rows); // ??
   mvwin(statArea, screen.rows - 1, 0);
   //ASSERT(g.point < g.cap);
@@ -454,22 +456,25 @@ int main(int argc, char **argv) {
   init_pair(2, COLOR_BLACK, COLOR_GREEN);
   init_pair(3, COLOR_RED, COLOR_BLACK);
   init_pair(4, COLOR_BLACK, COLOR_RED);
-  wattrset(textArea, COLOR_PAIR(1));
+  wattrset(textPad, COLOR_PAIR(1));
   wattrset(statArea, COLOR_PAIR(4));
+  wbkgd(popupArea, COLOR_PAIR(2));
   //ASSERT(g.point < g.cap);
 
   raw();
-  keypad(textArea, TRUE);
+  keypad(textPad, TRUE);
   noecho();
   
   if (argc > 1) {
     read_file(&g, argv[1]);
-    print_text_area(textArea, &g);
-    wrefresh(textArea);
+    print_text_area(textPad, &g);
+    wmove(textPad, 0, 0);
+    refresh();
+    prefresh(textPad, pad_pos, 0, 0, 4, screen.rows - 2, screen.cols - 1);
   }
   //print_status_line(statArea, &g, 0);
   wrefresh(statArea);
-  wmove(textArea, 0, 0);
+  wmove(textPad, 0, 0);
 
   draw_line_area(&g, lineArea);
   
@@ -477,17 +482,25 @@ int main(int argc, char **argv) {
 
   int c;
   bool changed;
-  while ((c = wgetch(textArea)) != STR_Q) {
+  while ((c = wgetch(textPad)) != STR_Q) {
     
     changed = false;
     // if (c == KEY_UP || c == CTRL('i')) {
     if (c == KEY_UP) {
-      state == TEXT ? gb_move_up(&g) :
+      if (state == TEXT) {
+        gb_move_up(&g);
+        pad_pos--;
+      }
+      else
     	open_move_up(&chosen_file, files_len, &changed);
     }
     
     else if (c == LK_DOWN) {
-      state == TEXT ? gb_move_down(&g) :
+      if (state == TEXT) {
+        gb_move_down(&g);
+        pad_pos++;
+      }
+      else
 	open_move_down(&chosen_file, files_len, &changed);
     } 
 
@@ -557,10 +570,11 @@ int main(int argc, char **argv) {
     print_status_line(statArea, &g, c, chosen_file);
     wrefresh(statArea);
     if (state == TEXT && changed) {
-      print_text_area(textArea, &g);
+      print_text_area(textPad, &g);
     }
-    wrefresh(textArea);
-    wmove(textArea, g.lin, g.col);
+    wmove(textPad, g.lin, g.col);
+    refresh();
+    prefresh(textPad, pad_pos, 0, 0, 4, screen.rows - 2, screen.cols - 1);
     if (state == OPEN && changed) {
       wclear(popupArea);
       print_files(popupArea, files, files_len, chosen_file);

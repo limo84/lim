@@ -53,15 +53,15 @@ void die(const char *format, ...) {
 
 typedef struct {
   char *buf;
-  uint32_t cap;
-  uint32_t size;
-  uint32_t front;
-  uint32_t point;
-  uint32_t line_start;
-  uint32_t line_end;
-  uint16_t line_width;
-  uint16_t lin, col;
-  uint16_t maxlines;
+  uint32_t cap;         // maximum capacity of gapbuffer, should be increased when needed
+  uint32_t size;        // size of written chars (frontbuffer + backbuffer)
+  uint32_t front;       // end of frontbuffer
+  uint32_t point;       // absolute position of cursor inside the buffer (get relative pos with gb_pos)
+  uint32_t line_start;  // position of next \n (or pos 0) to the left of cursor
+  uint32_t line_end;    //         ""          (or pos cap) to the right
+  uint16_t line_width;  // width of current line
+  uint16_t lin, col;    // number of line and col the cursor is at
+  uint16_t maxlines;    // number of maxlines of current buffer
 } GapBuffer;
 
 

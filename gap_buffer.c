@@ -56,11 +56,11 @@ typedef struct {
   uint32_t cap;         // maximum capacity of gapbuffer, should be increased when needed
   uint32_t size;        // size of written chars (frontbuffer + backbuffer)
   uint32_t front;       // end of frontbuffer
-  uint32_t point;       // absolute position of cursor inside the buffer (get relative pos with gb_pos)
+  uint32_t point;       // relative position of cursor inside the buffer (get absolute pos with gb_pos)
   uint32_t line_start;  // position of next \n (or pos 0) to the left of cursor
   uint32_t line_end;    //         ""          (or pos cap) to the right
   uint16_t line_width;  // width of current line
-  uint16_t lin, col;    // number of line and col the cursor is at
+  uint16_t lin, col;    // number of lines and cols the cursor is at
   uint16_t maxlines;    // number of maxlines of current buffer
 } GapBuffer;
 
@@ -101,6 +101,15 @@ char gb_get_current(GapBuffer *g) {
 char gb_get_offset(GapBuffer *g, i32 offset) {
   u32 pos = gb_pos_offset(g, offset);
   return g->buf[pos];
+}
+
+void gb_count_maxlines(GapBuffer *g) {
+  u32 old_point = g->point;
+  g->maxlines = 1;
+  for (g->point = 0; g->point < g->size; g->point++)
+    if (gb_get_current(g) == LK_ENTER)
+      g->maxlines += 1;
+  g->point = old_point;
 }
 
 int gb_jump(GapBuffer *g) {

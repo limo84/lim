@@ -24,6 +24,9 @@ typedef struct {
 
 int read_file(GapBuffer *g, char* filename) {
 
+  //die("huhu");
+  //u32 size;
+
   g->size = 0;
   g->front = 0;
   g->point = 0;
@@ -31,24 +34,35 @@ int read_file(GapBuffer *g, char* filename) {
   g->lin = 0;
   g->col = 0;
   g->maxlines = 1;
-
+  //die("2");
   FILE *file = fopen(filename, "r");
-  if (!file) {
-    die("File not found\n");
-  }
-    
-  char buffer[100000]; // TODO seek actual number of chracters before reading to gapbuffer
-  char c;
-  int i = 0;
-  for (; (c = fgetc(file)) != EOF; i++) {
-    buffer[i] = c;
-    if (c == 10) {
-      g->maxlines++;
-    }
-  }
-  g->size = i;
-  memmove(g->buf + g->cap - g->size, buffer, g->size);
+  if (!file) die("File not found\n");
+  //die("3");
+  if (fseek(file, 0, SEEK_END) != 0)
+    die("fseek SEEK_END");
+  
+  g->size = ftell(file);
+  //die("size: %d", size);
+  fseek(file, 0, SEEK_SET);
+  //die("fseek SEEK_SET");
+  
+  //char buffer[100000]; // TODO seek actual number of chracters before reading to gapbuffer
+  //char c;
+  //die("huhu 1\n");
+  fread(g->buf + g->cap - g->size, g->size, 1, file);
+  
+  //int i = 0;
+  //for (; (c = fgetc(file)) != EOF; i++) {
+  //  buffer[i] = c;
+  //  if (c == 10) {
+  //    g->maxlines++;
+  //  }
+  //}
+  gb_count_maxlines(g);
+  //g->size = size;
+  //memmove(g->buf + g->cap - g->size, buffer, g->size);
   gb_refresh_line_width(g);
+  //fclose(file);
   return 0;
 }
 
@@ -75,16 +89,16 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c, u8 chose
   //wprintw(statArea, "last: %d, ", c);
   wprintw(statArea, "ed: (%d, %d), ", g->lin + 1, g->col + 1);
   //wprintw(statArea, "width: %d, ", g->line_width);
-  //wprintw(statArea, "pos: %d, ", gb_pos(g));
+  wprintw(statArea, "point: %d, ", g->point);
+  wprintw(statArea, "pos: %d, ", gb_pos(g));
   //wprintw(statArea, "front: %d, ", g->front);
   //wprintw(statArea, "C: %d, ", gb_get_current(g));
-  //wprintw(statArea, "point: %d, ", g->point);
-  //wprintw(statArea, "size: %d, ", g->size);
+  wprintw(statArea, "size: %d, ", g->size);
   wprintw(statArea, "e.line: %d, ", e->screen_line);
   wprintw(statArea, "e.pad_pos: %d, ", e->pad_pos);
   //wprintw(statArea, "lstart: %d, ", g->line_start);
   //wprintw(statArea, "lend: %d, ", g->line_end);
-  //wprintw(statArea, "maxl: %d, ", g->maxlines);
+  wprintw(statArea, "maxl: %d, ", g->maxlines);
   //wprintw(statArea, "wl: %d, ", gb_width_left(g));
   //wprintw(statArea, "wr: %d, ", gb_width_right(g));
   //wprintw(statArea, "cf: %d, ", chosen_file);

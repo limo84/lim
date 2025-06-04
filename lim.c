@@ -1,12 +1,12 @@
 // TODO
 //
 // [X] scroll linePad 
-// [ ] move cursor to textPad at start
+// [X] move cursor to textPad at start
 // [ ] dont show cursor in popup
 // [ ] make popup nicer
-// [ ] change controls
+// [X] change controls
 // [ ] create readme
-// [ ] make statusLine optional
+// [X] make statusLine optional
 // [ ] cleanup
 //
 // [ ] increase buffer when necessary
@@ -17,10 +17,12 @@
 
 /************************* #EDITOR ******************************/
 
+#define SHOW_BAR 0
+
 typedef struct {
   u16 screen_y, screen_x;  // size of window in rows and cols
-  u8 screen_line; // line of the point on the screen
-  u32 pad_pos; // offset from top of pad to top of screen
+  u8 screen_line;          // line of the point on the screen
+  u32 pad_pos;             // offset from top of pad to top of screen
 } Editor;
 
 int read_file(GapBuffer *g, char* filename) {
@@ -66,6 +68,7 @@ void draw_line_area(GapBuffer *g, WINDOW *lineArea) {
   wrefresh(lineArea);
 }
 
+#if SHOW_BAR
 int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c, u8 chosen_file) {
   wmove(statArea, 0, 0);
   //wprintw(statArea, "last: %d, ", c);
@@ -87,6 +90,7 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c, u8 chose
   //wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
   wprintw(statArea, "\t\t\t");
 }
+#endif //SHOW_BAR
 
 char *get_path() {
   #define PATH_MAX 4096 
@@ -140,8 +144,16 @@ int main(int argc, char **argv) {
   initscr();
   start_color();
   atexit((void*)endwin);
-
-  struct timeval tp;
+	
+	if (!has_colors()) {
+    die("No Colors\n");
+  }
+  init_pair(1, COLOR_GREEN, COLOR_BLACK);
+  init_pair(2, COLOR_BLACK, COLOR_GREEN);
+  init_pair(3, COLOR_RED, COLOR_BLACK);
+  init_pair(4, COLOR_WHITE, COLOR_RED);
+  
+	struct timeval tp;
   u16 millis = 1000;
   u16 old_millis = 1000;
   u16 delta = 1000;
@@ -155,7 +167,6 @@ int main(int argc, char **argv) {
 
   WINDOW *lineArea;
   WINDOW *textPad;
-  WINDOW *statArea;
   WINDOW *popupArea;
 
   Editor e;
@@ -168,23 +179,18 @@ int main(int argc, char **argv) {
   e.screen_line = 0;
   lineArea = newpad(1000, 4);
   textPad = newpad(1000, e.screen_x - 4);
-  statArea = newwin(1, e.screen_x, 0, 0);
   popupArea = newwin(5, 30, 10, 10);
-  e.pad_pos = 0;
-  
+  #if SHOW_BAR
+  WINDOW *statArea;
+	statArea = newwin(1, e.screen_x, 0, 0);
+  mvwin(statArea, e.screen_y - 1, 0);
+  wattrset(statArea, COLOR_PAIR(4));
+  #endif //SHOW_BAR
+
+	e.pad_pos = 0;
   wresize(popupArea, 30, 60);
   box(popupArea, ACS_VLINE, ACS_HLINE);
-  mvwin(statArea, e.screen_y - 1, 0);
-
-  if (!has_colors()) {
-    die("No Colors\n");
-  }
-  init_pair(1, COLOR_GREEN, COLOR_BLACK);
-  init_pair(2, COLOR_BLACK, COLOR_GREEN);
-  init_pair(3, COLOR_RED, COLOR_BLACK);
-  init_pair(4, COLOR_WHITE, COLOR_RED);
   wattrset(textPad, COLOR_PAIR(1));
-  wattrset(statArea, COLOR_PAIR(4));
   wbkgd(popupArea, COLOR_PAIR(2));
 
   raw();
@@ -301,9 +307,10 @@ int main(int argc, char **argv) {
 
     // else if (c == 127) {
     // }
-
+    #if SHOW_BAR
     print_status_line(statArea, &g, &e, c, chosen_file);
     wrefresh(statArea);
+    #endif // SHOW_BAR
     if (state == TEXT && changed) {
       print_text_area(textPad, &g);
     }

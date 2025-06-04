@@ -7,6 +7,7 @@
 // [ ] change controls
 // [ ] create readme
 // [ ] make statusLine optional
+// [ ] cleanup
 //
 // [ ] increase buffer when necessary
 // [ ] increase pad size when necessary
@@ -24,9 +25,6 @@ typedef struct {
 
 int read_file(GapBuffer *g, char* filename) {
 
-  //die("huhu");
-  //u32 size;
-
   g->size = 0;
   g->front = 0;
   g->point = 0;
@@ -34,35 +32,19 @@ int read_file(GapBuffer *g, char* filename) {
   g->lin = 0;
   g->col = 0;
   g->maxlines = 1;
-  //die("2");
+ 
   FILE *file = fopen(filename, "r");
   if (!file) die("File not found\n");
-  //die("3");
   if (fseek(file, 0, SEEK_END) != 0)
     die("fseek SEEK_END");
-  
+ 
   g->size = ftell(file);
-  //die("size: %d", size);
   fseek(file, 0, SEEK_SET);
-  //die("fseek SEEK_SET");
-  
-  //char buffer[100000]; // TODO seek actual number of chracters before reading to gapbuffer
-  //char c;
-  //die("huhu 1\n");
+
   fread(g->buf + g->cap - g->size, g->size, 1, file);
-  
-  //int i = 0;
-  //for (; (c = fgetc(file)) != EOF; i++) {
-  //  buffer[i] = c;
-  //  if (c == 10) {
-  //    g->maxlines++;
-  //  }
-  //}
   gb_count_maxlines(g);
-  //g->size = size;
-  //memmove(g->buf + g->cap - g->size, buffer, g->size);
   gb_refresh_line_width(g);
-  //fclose(file);
+  fclose(file);
   return 0;
 }
 
@@ -144,7 +126,6 @@ void open_move_down(u8 *chosen_file, u16 files_len, bool *changed) {
 void open_open_file(GapBuffer *g, char **files, u8 chosen_file) {
   gb_clear_buffer(g);
   read_file(g, files[chosen_file]);
-  //die("pos: %d, size: %d", gb_pos(g), g->size); 
 }
 
 typedef enum {
@@ -181,11 +162,9 @@ int main(int argc, char **argv) {
   State state = TEXT;
   GapBuffer g;
   gb_init(&g, INIT_CAP);
-  //ASSERT(g.point < g.cap);
  
   g.buf = calloc(g.cap, sizeof(char));
   getmaxyx(stdscr, e.screen_y, e.screen_x);
-  //die("y: %d, x: %d\n", e.screen_y, e.screen_x);
   e.screen_line = 0;
   lineArea = newpad(1000, 4);
   textPad = newpad(1000, e.screen_x - 4);
@@ -193,15 +172,9 @@ int main(int argc, char **argv) {
   popupArea = newwin(5, 30, 10, 10);
   e.pad_pos = 0;
   
-  //scrollok(textArea, true);
-  //scrollok(lineArea, true);
   wresize(popupArea, 30, 60);
   box(popupArea, ACS_VLINE, ACS_HLINE);
-  
-  //mvwin(textArea, 0, 4);
-  //vline(ACS_VLINE, screen.rows); // ??
   mvwin(statArea, e.screen_y - 1, 0);
-  //ASSERT(g.point < g.cap);
 
   if (!has_colors()) {
     die("No Colors\n");
@@ -213,7 +186,6 @@ int main(int argc, char **argv) {
   wattrset(textPad, COLOR_PAIR(1));
   wattrset(statArea, COLOR_PAIR(4));
   wbkgd(popupArea, COLOR_PAIR(2));
-  //ASSERT(g.point < g.cap);
 
   raw();
   keypad(textPad, TRUE);
@@ -223,22 +195,13 @@ int main(int argc, char **argv) {
     read_file(&g, argv[1]);
     draw_line_area(&g, lineArea);
     print_text_area(textPad, &g);
-    wmove(textPad, 0, 0);
     refresh();
     prefresh(lineArea, e.pad_pos, 0, 0, 0, e.screen_y - 2, 4);
-    prefresh(textPad, e.pad_pos, 0, 0, 4, e.screen_y - 2, e.screen_x - 1);
   }
-  //print_status_line(statArea, &g, 0);
-  wrefresh(statArea);
-  wmove(textPad, 0, 0);
 
-  
-  //ASSERT(g.point < g.cap);
-
-  int c;
+  int c = - 1;
   bool changed;
-  while ((c = wgetch(textPad)) != STR_Q) {
-    
+  do {
     changed = false;
     // if (c == KEY_UP || c == CTRL('i')) {
     if (c == KEY_UP) {
@@ -305,6 +268,7 @@ int main(int argc, char **argv) {
         gb_refresh_line_width(&g);
       } else {
         open_open_file(&g, files, chosen_file);
+        e.screen_line = 0;
         state = TEXT;
       }
      	
@@ -314,7 +278,6 @@ int main(int argc, char **argv) {
     
     else if (c >= 32 && c <= 126) {
       gb_jump(&g);
-      // winsch(textArea, c);
       g.buf[g.front] = c;
       g.size++;
       g.front++;
@@ -327,7 +290,7 @@ int main(int argc, char **argv) {
     else if (c == CTRL('r')) {
       if (state == TEXT) {
         state = OPEN;
-	changed = true;
+        changed = true;
       }
       else if (state == OPEN) {
         state = TEXT;
@@ -351,10 +314,9 @@ int main(int argc, char **argv) {
     if (state == OPEN && changed) {
       wclear(popupArea);
       print_files(popupArea, files, files_len, chosen_file);
-      //read_fs(popupArea);
       wrefresh(popupArea);
     }
-  }
+  } while ((c = wgetch(textPad)) != STR_Q);
   
   clear();
   endwin();

@@ -224,14 +224,16 @@ int main(int argc, char **argv) {
       }
       else
         open_move_down(&chosen_file, files_len, &changed);
-    } 
+    }
 
     else if (c == KEY_RIGHT) {
-      if (gb_get_current(&g) == LK_ENTER) {
-        if (e.screen_line >= e.screen_y - 8)
-          e.pad_pos++;
-        else
-          e.screen_line++;
+      if (state == TEXT) {
+        if (g.lin < g.maxlines - 2 && gb_get_current(&g) == LK_ENTER) {
+          if (e.screen_line >= e.screen_y - 8)
+            e.pad_pos++;
+          else
+            e.screen_line++;
+        }
       }
       gb_move_right(&g);
     }

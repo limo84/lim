@@ -216,9 +216,9 @@ bool gb_backspace(GapBuffer *g) {
   return true;
 }
 
-void gb_move_right(GapBuffer *g) {
+bool gb_move_right(GapBuffer *g) {
   if (g->point >= g->size - 1) {
-    return;
+    return false;
   }
   if (gb_get_current(g) == 10) {
     g->point++;
@@ -230,11 +230,12 @@ void gb_move_right(GapBuffer *g) {
     g->point++;
     g->col++;
   }
+	return true;
 }
 
-void gb_move_left(GapBuffer *g) {
+bool gb_move_left(GapBuffer *g) {
   if (g->point <= 0) {
-    return;
+    return false;
   }
   g->point--;
   if (gb_get_current(g) == 10) {
@@ -245,6 +246,7 @@ void gb_move_left(GapBuffer *g) {
   else {
     g->col--;
   }
+	return true;
 }
 
 bool gb_move_up(GapBuffer *g) {

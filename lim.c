@@ -18,7 +18,7 @@
 /************************* #EDITOR ******************************/
 
 typedef struct {
-  u16 screen_y, screen_x;  // size in cols and rows of window
+  u16 screen_y, screen_x;  // size of window in rows and cols
   u8 screen_line; // line of the point on the screen
   u32 pad_pos; // offset from top of pad to top of screen
 } Editor;
@@ -203,8 +203,7 @@ int main(int argc, char **argv) {
   bool changed;
   do {
     changed = false;
-    // if (c == KEY_UP || c == CTRL('i')) {
-    if (c == KEY_UP) {
+    if (c == KEY_UP || c == CTRL('i')) {
       if (state == TEXT && gb_move_up(&g)) {
         if (e.screen_line <= 8 && e.pad_pos > 0)
           e.pad_pos--;
@@ -215,7 +214,7 @@ int main(int argc, char **argv) {
         open_move_up(&chosen_file, files_len, &changed);
     }
     
-    else if (c == LK_DOWN) {
+    else if (c == LK_DOWN || c == CTRL('k')) {
       if (state == TEXT && gb_move_down(&g)) {
         if (e.screen_line >= e.screen_y - 8)
           e.pad_pos++;
@@ -226,7 +225,7 @@ int main(int argc, char **argv) {
         open_move_down(&chosen_file, files_len, &changed);
     }
 
-    else if (c == KEY_RIGHT) {
+    else if (c == KEY_RIGHT || c == CTRL('l')) {
       if (state == TEXT) {
         if (g.lin < g.maxlines - 2 && gb_get_current(&g) == LK_ENTER) {
           if (e.screen_line >= e.screen_y - 8)
@@ -238,7 +237,7 @@ int main(int argc, char **argv) {
       gb_move_right(&g);
     }
     
-    else if (c == KEY_LEFT) {
+    else if (c == KEY_LEFT || c == CTRL('j')) {
       gb_move_left(&g);
       if (gb_get_current(&g) == LK_ENTER) {
         if (e.screen_line <= 8 && e.pad_pos > 0)
@@ -248,7 +247,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    else if (c == 263) {
+    else if (c == 263 || c == CTRL('u')) {
       changed = gb_backspace(&g);
       draw_line_area(&g, lineArea);
     }
@@ -257,7 +256,7 @@ int main(int argc, char **argv) {
       gb_write_to_file(&g);
     }
     
-    else if (c == LK_ENTER) {
+    else if (c == CTRL('o')) {
       if (state == TEXT) {
         gb_jump(&g);
         g.buf[g.front] = '\n';

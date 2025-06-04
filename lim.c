@@ -17,9 +17,9 @@
 /************************* #EDITOR ******************************/
 
 typedef struct {
-  uint16_t screen_y, screen_x;
-  u8 screen_line;
-  u32 pad_pos;
+  u16 screen_y, screen_x;  // size in cols and rows of window
+  u8 screen_line; // line of the point on the screen
+  u32 pad_pos; // offset from top of pad to top of screen
 } Editor;
 
 int read_file(GapBuffer *g, char* filename) {
@@ -243,13 +243,10 @@ int main(int argc, char **argv) {
     // if (c == KEY_UP || c == CTRL('i')) {
     if (c == KEY_UP) {
       if (state == TEXT && gb_move_up(&g)) {
-        // gb_move_up(&g);
-        if (e.screen_line <= 8 && e.pad_pos > 0) {
+        if (e.screen_line <= 8 && e.pad_pos > 0)
           e.pad_pos--;
-        }
-        else {
+        else
           e.screen_line--;
-        }
       }
       else
         open_move_up(&chosen_file, files_len, &changed);
@@ -257,23 +254,33 @@ int main(int argc, char **argv) {
     
     else if (c == LK_DOWN) {
       if (state == TEXT && gb_move_down(&g)) {
-        if (e.screen_line >= e.screen_y - 8) {
+        if (e.screen_line >= e.screen_y - 8)
           e.pad_pos++;
-        }
-        else {
+        else
           e.screen_line++;
-        }
       }
       else
         open_move_down(&chosen_file, files_len, &changed);
     } 
 
     else if (c == KEY_RIGHT) {
+      if (gb_get_current(&g) == LK_ENTER) {
+        if (e.screen_line >= e.screen_y - 8)
+          e.pad_pos++;
+        else
+          e.screen_line++;
+      }
       gb_move_right(&g);
     }
     
     else if (c == KEY_LEFT) {
       gb_move_left(&g);
+      if (gb_get_current(&g) == LK_ENTER) {
+        if (e.screen_line <= 8 && e.pad_pos > 0)
+          e.pad_pos--;
+        else
+          e.screen_line--;
+      }
     }
 
     else if (c == 263) {

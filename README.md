@@ -5,3 +5,5 @@ Type ```make``` to build and run
 - Use Ctrl + u as Backspace
 - Use Ctrl + r to read a file
 - Ctrl + s to save
+- ...
+- Oh yes, CTRL + q quits the editor

@@ -5,9 +5,10 @@
 // [ ] dont show cursor in popup
 // [ ] make popup nicer
 // [X] change controls
-// [ ] create readme
+// [X] create readme
 // [X] make statusLine optional
 // [ ] cleanup
+// [ ] save in correct file
 //
 // [ ] increase buffer when necessary
 // [ ] increase pad size when necessary

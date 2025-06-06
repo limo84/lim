@@ -44,6 +44,7 @@ void editor_init(Editor *e) {
   e->files = NULL;
   e->files_len = 0;
   e->should_refresh = false;
+  
   // INIT TEXT_PAD
   e->textPad = NULL;
   getmaxyx(stdscr, e->screen_y, e->screen_x);
@@ -52,18 +53,19 @@ void editor_init(Editor *e) {
     die("Could not init textPad");
   wattrset(e->textPad, COLOR_PAIR(1));
   keypad(e->textPad, TRUE);
+  
   // INIT LINE_PAD
   e->linePad = NULL;
   e->linePad = newpad(1000, 4);
   if (!e->linePad)
     die("Could not init linePad");
+  
   // INIT POPUP_AREA
   e->popupArea = NULL;
   e->popupArea = newwin(5, 30, 10, 10);
   if (!e->popupArea)
     die("Could not init popupArea");
   wresize(e->popupArea, 30, 60);
-  //box(e->popupArea, ACS_VLINE, ACS_HLINE);
   wbkgd(e->popupArea, COLOR_PAIR(2));
 
 }

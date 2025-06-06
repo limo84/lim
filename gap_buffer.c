@@ -18,6 +18,7 @@
 #define CTRL(c) ((c) & 037)
 #define STR_Q 17
 #define LK_ENTER 10
+#define MY_KEY_ENTER 13
 #define LK_UP 65
 #define LK_DOWN 258
 #define LK_RIGHT 67
@@ -191,6 +192,18 @@ u16 gb_width_right(GapBuffer *g) {
       return i;
   }
   die("should never be reached");
+}
+
+void gb_enter(GapBuffer *g) {
+  gb_jump(g);
+  g->buf[g->front] = '\n';
+  g->size++;
+  g->front++;
+  g->point++;
+  g->lin += 1;
+  g->col = 0;
+  g->maxlines++;
+  gb_refresh_line_width(g);
 }
 
 bool gb_backspace(GapBuffer *g) {

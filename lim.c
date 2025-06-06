@@ -195,6 +195,7 @@ int main(int argc, char **argv) {
   wbkgd(popupArea, COLOR_PAIR(2));
 
   raw();
+  nonl(); // turn (KEY|LK)_ENTER into MY_KEY_ENTER|13
   keypad(textPad, TRUE);
   noecho();
   
@@ -263,17 +264,9 @@ int main(int argc, char **argv) {
       gb_write_to_file(&g);
     }
     
-    else if (c == CTRL('o')) {
+    else if (c == CTRL('o') || c == MY_KEY_ENTER) {
       if (state == TEXT) {
-        gb_jump(&g);
-        g.buf[g.front] = '\n';
-        g.size++;
-        g.front++;
-        g.point++;
-        g.lin += 1;
-        g.col = 0;
-        g.maxlines++;
-        gb_refresh_line_width(&g);
+        gb_enter(&g);
       } else {
         open_open_file(&g, files, chosen_file);
         e.screen_line = 0;

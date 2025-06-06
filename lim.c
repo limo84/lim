@@ -1,5 +1,6 @@
 // TODO
 //
+// [ ] e.line-- bei backspace
 // [X] scroll linePad 
 // [X] move cursor to textPad at start
 // [ ] dont show cursor in popup
@@ -38,6 +39,10 @@ char *get_path() {
 
 #define SHOW_BAR 1
 
+typedef enum {
+  TEXT, OPEN
+} State;
+
 typedef struct {
   u16 screen_y;        // height of window in rows
   u16 screen_x;        // width of window in cols
@@ -51,6 +56,7 @@ typedef struct {
   WINDOW *textPad;     // the area for the text
   WINDOW *linePad;     // the area for the linenumbers
   WINDOW *popupArea;   // the area for dialogs
+  State state;         // the state of the editor
 } Editor;
 
 void editor_init(Editor *e) {
@@ -62,6 +68,7 @@ void editor_init(Editor *e) {
   e->files_len = 0;
   e->should_refresh = false;
   e->path = get_path();
+  e->state = TEXT;
   
   // INIT TEXT_PAD
   e->textPad = NULL;
@@ -173,9 +180,25 @@ void ncurses_init() {
   noecho();
 }
 
-typedef enum {
-  TEXT, OPEN
-} State;
+
+void handle_menu(Editor *e, GapBuffer *g, int c) {
+  
+  if (c == KEY_UP || c == CTRL('i')) {
+    open_move_up(e);
+  }
+    
+  else if (c == LK_DOWN || c == CTRL('k')) {
+    open_move_down(e);
+  }
+
+  else if (c == CTRL('o')) {
+    open_open_file(g, e);
+    e->screen_line = 0;
+    e->state = TEXT;
+    draw_line_area(e, g);
+    e->should_refresh = true;
+  }
+}
 
 
 /************************** #MAIN ********************************/
@@ -197,8 +220,6 @@ int main(int argc, char **argv) {
   gb_init(&g, INIT_CAP);
   g.buf = calloc(g.cap, sizeof(char));
 
-  State state = TEXT;
-  
   get_file_system(e.path, &e.files, &e.files_len); 
   
   #if SHOW_BAR
@@ -207,50 +228,45 @@ int main(int argc, char **argv) {
   mvwin(statArea, e.screen_y - 1, 0);
   wattrset(statArea, COLOR_PAIR(4));
   #endif //SHOW_BAR
-
-  
-  
+ 
   if (argc > 1) {
     gb_read_file(&g, argv[1]);
+    e.should_refresh = true;
     draw_line_area(&e, &g);
-    print_text_area(&e, &g);
-    refresh();
-    prefresh(e.linePad, e.pad_pos, 0, 0, 0, e.screen_y - 2, 4);
   }
 
   int c = - 1;
   do {
-    e.should_refresh = false;
+
+    if (e.state == OPEN) {
+      handle_menu(&e, &g, c);
+      goto LABEL; //TODO REMOVE
+    }
+
     if (c == KEY_UP || c == CTRL('i')) {
-      if (state == TEXT && gb_move_up(&g)) {
+      if (gb_move_up(&g)) {
         if (e.screen_line <= 8 && e.pad_pos > 0)
           e.pad_pos--;
         else
           e.screen_line--;
       }
-      else
-        open_move_up(&e);
     }
     
     else if (c == LK_DOWN || c == CTRL('k')) {
-      if (state == TEXT && gb_move_down(&g)) {
+      if (gb_move_down(&g)) {
         if (e.screen_line >= e.screen_y - 8)
           e.pad_pos++;
         else
           e.screen_line++;
       }
-      else
-        open_move_down(&e);
     }
 
     else if (c == KEY_RIGHT || c == CTRL('l')) {
-      if (state == TEXT) {
-        if (g.lin < g.maxlines - 2 && gb_get_current(&g) == LK_ENTER) {
-          if (e.screen_line >= e.screen_y - 8)
-            e.pad_pos++;
-          else
-            e.screen_line++;
-        }
+      if (g.lin < g.maxlines - 2 && gb_get_current(&g) == LK_ENTER) {
+        if (e.screen_line >= e.screen_y - 8)
+          e.pad_pos++;
+        else
+          e.screen_line++;
       }
       gb_move_right(&g);
     }
@@ -275,26 +291,19 @@ int main(int argc, char **argv) {
     }
     
     else if (c == CTRL('o')) {
-      if (state == TEXT) {
-        gb_jump(&g);
-        g.buf[g.front] = '\n';
-        g.size++;
-        g.front++;
-        g.point++;
-        if (e.screen_line >= e.screen_y - 8)
-          e.pad_pos++;
-        else
-          e.screen_line++;
-        g.lin += 1;
-        g.col = 0;
-        g.maxlines++;
-        gb_refresh_line_width(&g);
-      } else {
-        open_open_file(&g, &e);
-        e.screen_line = 0;
-        state = TEXT;
-      }
-     	
+      gb_jump(&g);
+      g.buf[g.front] = '\n';
+      g.size++;
+      g.front++;
+      g.point++;
+      if (e.screen_line >= e.screen_y - 8)
+        e.pad_pos++;
+      else
+        e.screen_line++;
+      g.lin += 1;
+      g.col = 0;
+      g.maxlines++;
+      gb_refresh_line_width(&g);
       draw_line_area(&e, &g);
       e.should_refresh = true;
     }
@@ -311,23 +320,24 @@ int main(int argc, char **argv) {
     }
 
     else if (c == CTRL('r')) {
-      if (state == TEXT) {
-        state = OPEN;
+      if (e.state == TEXT) {
+        e.state = OPEN;
         e.should_refresh = true;
       }
-      else if (state == OPEN) {
-        state = TEXT;
+      else if (e.state == OPEN) {
+        e.state = TEXT;
         e.should_refresh = true;
       }
     }
 
+ LABEL :
     // else if (c == 127) {
     // }
     #if SHOW_BAR
     print_status_line(statArea, &g, &e, c);
     wrefresh(statArea);
     #endif // SHOW_BAR
-    if (state == TEXT && e.should_refresh) {
+    if (e.state == TEXT && e.should_refresh) {
       print_text_area(&e, &g);
     }
     refresh();
@@ -335,11 +345,12 @@ int main(int argc, char **argv) {
     prefresh(e.linePad, e.pad_pos, 0, 0, 0, e.screen_y - 2, 4);
     prefresh(e.textPad, e.pad_pos, 0, 0, 4, e.screen_y - 2, e.screen_x - 1);
 
-    if (state == OPEN && e.should_refresh) {
+    if (e.state == OPEN && e.should_refresh) {
       wclear(e.popupArea);
       print_files(&e);
       wrefresh(e.popupArea);
     }
+    e.should_refresh = false;
   } while ((c = wgetch(e.textPad)) != STR_Q);
   
   clear();

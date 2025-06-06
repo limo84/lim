@@ -174,11 +174,14 @@ u16 gb_prev_line_width(GapBuffer *g) {
 
 u16 gb_width_left(GapBuffer *g) {
   u32 old_point = g->point;
+  // needed to switch cases for case of first line being only "\n"
+  // reproduce (now working): open file, enter, enter, backspace, backspace
+  // but line_start is 0 for 2nd line und 2 for 3rd line :(
   for (int i = 0; i < 10000; i++) {
-    if (g->point - i == 0)
-      return i;
     if (i > 0 && gb_get_offset(g, -i) == LK_ENTER)
       return i - 1;
+    if (g->point - i == 0)
+      return i;
   }
   die("should never be reached");
 }

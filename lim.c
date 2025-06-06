@@ -169,6 +169,8 @@ void ncurses_init() {
   init_pair(2, COLOR_BLACK, COLOR_GREEN);
   init_pair(3, COLOR_RED, COLOR_BLACK);
   init_pair(4, COLOR_WHITE, COLOR_RED);
+  raw();
+  noecho();
 }
 
 typedef enum {
@@ -195,13 +197,9 @@ int main(int argc, char **argv) {
   gb_init(&g, INIT_CAP);
   g.buf = calloc(g.cap, sizeof(char));
 
-
-  // TODO () necessary?
-  get_file_system(e.path, &(e.files), &(e.files_len));
-
-
   State state = TEXT;
   
+  get_file_system(e.path, &e.files, &e.files_len); 
   
   #if SHOW_BAR
   WINDOW *statArea;
@@ -211,8 +209,6 @@ int main(int argc, char **argv) {
   #endif //SHOW_BAR
 
   
-  raw();
-  noecho();
   
   if (argc > 1) {
     gb_read_file(&g, argv[1]);

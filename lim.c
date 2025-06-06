@@ -198,6 +198,98 @@ void handle_menu(Editor *e, GapBuffer *g, int c) {
     draw_line_area(e, g);
     e->should_refresh = true;
   }
+
+  else if (c == CTRL('r')) {
+    e->state = TEXT;
+    e->should_refresh = true;
+  }
+}
+
+void handle_text_state(Editor *e, GapBuffer *g, int c) {
+
+  if (c == KEY_UP || c == CTRL('i')) {
+    if (gb_move_up(g)) {
+      if (e->screen_line <= 8 && e->pad_pos > 0)
+        e->pad_pos--;
+      else
+        e->screen_line--;
+    }
+  }
+
+  else if (c == LK_DOWN || c == CTRL('k')) {
+    if (gb_move_down(g)) {
+      if (e->screen_line >= e->screen_y - 8)
+        e->pad_pos++;
+      else
+        e->screen_line++;
+    }
+  }
+
+  else if (c == KEY_RIGHT || c == CTRL('l')) {
+    if (g->lin < g->maxlines - 2 && gb_get_current(g) == LK_ENTER) {
+      if (e->screen_line >= e->screen_y - 8)
+        e->pad_pos++;
+      else
+        e->screen_line++;
+    }
+    gb_move_right(g);
+  }
+
+  else if (c == KEY_LEFT || c == CTRL('j')) {
+    gb_move_left(g);
+    if (gb_get_current(g) == LK_ENTER) {
+      if (e->screen_line <= 8 && e->pad_pos > 0)
+        e->pad_pos--;
+      else
+        e->screen_line--;
+    }
+  }
+
+  else if (c == 263 || c == CTRL('u')) {
+    e->should_refresh = gb_backspace(g);
+    draw_line_area(e, g);
+  }
+
+  else if (c == CTRL('s')) {
+    gb_write_to_file(g);
+  }
+    
+  else if (c == CTRL('o')) {
+    gb_jump(g);
+    g->buf[g->front] = '\n';
+    g->size++;
+    g->front++;
+    g->point++;
+    if (e->screen_line >= e->screen_y - 8)
+      e->pad_pos++;
+    else
+      e->screen_line++;
+    g->lin += 1;
+    g->col = 0;
+    g->maxlines++;
+    gb_refresh_line_width(g);
+    draw_line_area(e, g);
+    e->should_refresh = true;
+  }
+  
+  else if (c >= 32 && c <= 126) {
+    gb_jump(g);
+    g->buf[g->front] = c;
+    g->size++;
+    g->front++;
+    g->point++;
+    g->col += 1;
+    gb_refresh_line_width(g);
+    e->should_refresh = true;
+  }
+
+  else if (c == CTRL('r')) {
+    e->state = OPEN;
+    e->should_refresh = true;
+  }
+
+  // else if (c == 127) {
+  // }
 }
 
 
@@ -237,102 +329,14 @@ int main(int argc, char **argv) {
 
   int c = - 1;
   do {
-
-    if (e.state == OPEN) {
-      handle_menu(&e, &g, c);
-      goto LABEL; //TODO REMOVE
+    switch (e.state) {
+      case OPEN:
+        handle_menu(&e, &g, c);
+        break;
+      case TEXT:
+        handle_text_state(&e, &g, c);
+        break;
     }
-
-    if (c == KEY_UP || c == CTRL('i')) {
-      if (gb_move_up(&g)) {
-        if (e.screen_line <= 8 && e.pad_pos > 0)
-          e.pad_pos--;
-        else
-          e.screen_line--;
-      }
-    }
-    
-    else if (c == LK_DOWN || c == CTRL('k')) {
-      if (gb_move_down(&g)) {
-        if (e.screen_line >= e.screen_y - 8)
-          e.pad_pos++;
-        else
-          e.screen_line++;
-      }
-    }
-
-    else if (c == KEY_RIGHT || c == CTRL('l')) {
-      if (g.lin < g.maxlines - 2 && gb_get_current(&g) == LK_ENTER) {
-        if (e.screen_line >= e.screen_y - 8)
-          e.pad_pos++;
-        else
-          e.screen_line++;
-      }
-      gb_move_right(&g);
-    }
-    
-    else if (c == KEY_LEFT || c == CTRL('j')) {
-      gb_move_left(&g);
-      if (gb_get_current(&g) == LK_ENTER) {
-        if (e.screen_line <= 8 && e.pad_pos > 0)
-          e.pad_pos--;
-        else
-          e.screen_line--;
-      }
-    }
-
-    else if (c == 263 || c == CTRL('u')) {
-      e.should_refresh = gb_backspace(&g);
-      draw_line_area(&e,&g);
-    }
-
-    else if (c == CTRL('s')) {
-      gb_write_to_file(&g);
-    }
-    
-    else if (c == CTRL('o')) {
-      gb_jump(&g);
-      g.buf[g.front] = '\n';
-      g.size++;
-      g.front++;
-      g.point++;
-      if (e.screen_line >= e.screen_y - 8)
-        e.pad_pos++;
-      else
-        e.screen_line++;
-      g.lin += 1;
-      g.col = 0;
-      g.maxlines++;
-      gb_refresh_line_width(&g);
-      draw_line_area(&e, &g);
-      e.should_refresh = true;
-    }
-    
-    else if (c >= 32 && c <= 126) {
-      gb_jump(&g);
-      g.buf[g.front] = c;
-      g.size++;
-      g.front++;
-      g.point++;
-      g.col += 1;
-      gb_refresh_line_width(&g);
-      e.should_refresh = true;
-    }
-
-    else if (c == CTRL('r')) {
-      if (e.state == TEXT) {
-        e.state = OPEN;
-        e.should_refresh = true;
-      }
-      else if (e.state == OPEN) {
-        e.state = TEXT;
-        e.should_refresh = true;
-      }
-    }
-
- LABEL :
-    // else if (c == 127) {
-    // }
     #if SHOW_BAR
     print_status_line(statArea, &g, &e, c);
     wrefresh(statArea);

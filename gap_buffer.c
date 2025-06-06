@@ -287,6 +287,32 @@ void gb_write_to_file(GapBuffer *g) {
   g->point = old_point;
 }
 
+int gb_read_file(GapBuffer *g, char* filename) {
+
+  g->size = 0;
+  g->front = 0;
+  g->point = 0;
+  g->line_width = 0;
+  g->lin = 0;
+  g->col = 0;
+  g->maxlines = 1;
+ 
+  FILE *file = fopen(filename, "r");
+  if (!file) die("File not found\n");
+  if (fseek(file, 0, SEEK_END) != 0)
+    die("fseek SEEK_END");
+ 
+  g->size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  fread(g->buf + g->cap - g->size, g->size, 1, file);
+  gb_count_maxlines(g);
+  gb_refresh_line_width(g);
+  fclose(file);
+  return 0;
+}
+
+// remove?
 void gb_clear_buffer(GapBuffer *g) {
   //free(g->buf);
   g->size = 0;

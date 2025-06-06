@@ -7,3 +7,4 @@ Type ```make``` to build and run
 - Ctrl + s to save
 - ...
 - Oh yes, CTRL + q quits the editor
+- If anything goes wrong ```reset``` restores your terminal (even if you cant't see that you typed it)

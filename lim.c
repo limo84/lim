@@ -33,6 +33,7 @@ typedef struct {
   bool should_refresh; // if the editor should refresh
   WINDOW *textPad;     // the area for the text
   WINDOW *linePad;     // the area for the linenumbers
+  WINDOW *popupArea;   // the area for dialogs
 } Editor;
 
 void editor_init(Editor *e) {
@@ -43,7 +44,7 @@ void editor_init(Editor *e) {
   e->files = NULL;
   e->files_len = 0;
   e->should_refresh = false;
-  // INIT TEXTPAD
+  // INIT TEXT_PAD
   e->textPad = NULL;
   getmaxyx(stdscr, e->screen_y, e->screen_x);
   e->textPad = newpad(1000, e->screen_x - 4);
@@ -51,11 +52,20 @@ void editor_init(Editor *e) {
     die("Could not init textPad");
   wattrset(e->textPad, COLOR_PAIR(1));
   keypad(e->textPad, TRUE);
-  // INIT LINEPAD
+  // INIT LINE_PAD
   e->linePad = NULL;
   e->linePad = newpad(1000, 4);
   if (!e->linePad)
     die("Could not init linePad");
+  // INIT POPUP_AREA
+  e->popupArea = NULL;
+  e->popupArea = newwin(5, 30, 10, 10);
+  if (!e->popupArea)
+    die("Could not init popupArea");
+  wresize(e->popupArea, 30, 60);
+  //box(e->popupArea, ACS_VLINE, ACS_HLINE);
+  wbkgd(e->popupArea, COLOR_PAIR(2));
+
 }
 
 void print_text_area(Editor *e, GapBuffer *g) {
@@ -114,15 +124,15 @@ char *get_path() {
   return path;
 }
 
-void print_files(Editor *e, WINDOW *popupArea) {
+void print_files(Editor *e) {
   int line = 2;
   for (int i = 0; i < e->files_len; i++, line++) {
     if (i == e->chosen_file)
-      wattrset(popupArea, COLOR_PAIR(4));
+      wattrset(e->popupArea, COLOR_PAIR(4));
     else
-      wattrset(popupArea, COLOR_PAIR(2));
+      wattrset(e->popupArea, COLOR_PAIR(2));
 
-    mvwprintw(popupArea, line, 3, "%s", e->files[i]);
+    mvwprintw(e->popupArea, line, 3, "%s", e->files[i]);
   }
 }
 
@@ -180,12 +190,10 @@ int main(int argc, char **argv) {
 
   get_file_system(path, &(e.files), &(e.files_len));
 
-  WINDOW *popupArea;
 
   State state = TEXT;
   
   
-  popupArea = newwin(5, 30, 10, 10);
   #if SHOW_BAR
   WINDOW *statArea;
   statArea = newwin(1, e.screen_x, 0, 0);
@@ -193,11 +201,7 @@ int main(int argc, char **argv) {
   wattrset(statArea, COLOR_PAIR(4));
   #endif //SHOW_BAR
 
-  wresize(popupArea, 30, 60);
-  box(popupArea, ACS_VLINE, ACS_HLINE);
   
-  wbkgd(popupArea, COLOR_PAIR(2));
-
   raw();
   noecho();
   
@@ -327,9 +331,9 @@ int main(int argc, char **argv) {
     prefresh(e.textPad, e.pad_pos, 0, 0, 4, e.screen_y - 2, e.screen_x - 1);
 
     if (state == OPEN && e.should_refresh) {
-      wclear(popupArea);
-      print_files(&e, popupArea);
-      wrefresh(popupArea);
+      wclear(e.popupArea);
+      print_files(&e);
+      wrefresh(e.popupArea);
     }
   } while ((c = wgetch(e.textPad)) != STR_Q);
   

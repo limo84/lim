@@ -242,10 +242,16 @@ int main(int argc, char **argv) {
             e.screen_line++;
         }
       }
+      // FIXME
+      // Y NO changed??
+      // Y NOT IN state == TEXT?
       gb_move_right(&g);
     }
     
     else if (c == KEY_LEFT || c == CTRL('j')) {
+      // FIXME
+      // Y NO changed??
+      // Y NO state == TEXT??
       gb_move_left(&g);
       if (gb_get_current(&g) == LK_ENTER) {
         if (e.screen_line <= 8 && e.pad_pos > 0)

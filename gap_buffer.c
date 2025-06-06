@@ -284,8 +284,9 @@ bool gb_end(GapBuffer *g) {
   g->col = g->line_width - 1;
   return true;
 }
- 
 
+// FIXME: open file, enter, KEY_UP
+// FIXME: open file, KEY_DOWN, enter, KEY_UP, KEY_UP, KEY_DOWN
 bool gb_move_up(GapBuffer *g) {
   if (g->lin == 0) {
     return false;
@@ -299,6 +300,8 @@ bool gb_move_up(GapBuffer *g) {
   return true;
 }
 
+// FIXME open file, KEY_DOWN, enter, KEY_UP, KEY_DOWN
+// FIXME open file, KEY_DOWN, enter, enter, KEY_UP, KEY_UP, KEY_DOWN, KEY_DOWN
 bool gb_move_down(GapBuffer *g) {
   if (g->lin >= g->maxlines - 2) { // TODO ?
     return false;

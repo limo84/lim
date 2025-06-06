@@ -18,6 +18,22 @@
 
 #include "gap_buffer.c"
 
+
+/************************ #MISC ******************************/
+
+char *get_path() {
+  #define PATH_MAX 4096
+  char buffer[PATH_MAX];
+  if (getcwd(buffer, PATH_MAX) == NULL) {
+    perror("getcwd");
+    return NULL;
+  }
+  u16 cwd_len = strlen(buffer) + 1;
+  char *path = malloc(cwd_len);
+  strcpy(path, buffer);
+  return path;
+}
+
 /************************* #EDITOR ******************************/
 
 #define SHOW_BAR 1
@@ -27,9 +43,10 @@ typedef struct {
   u16 screen_x;        // width of window in cols
   u8 screen_line;      // line of the point on the screen
   u32 pad_pos;         // offset from top of pad to top of screen
+  char *path;          // path
+  char **files;        // files
   u32 chosen_file;     // selected file in open_file menu
   u32 files_len;       // amount of files found in path
-  char **files;        // files
   bool should_refresh; // if the editor should refresh
   WINDOW *textPad;     // the area for the text
   WINDOW *linePad;     // the area for the linenumbers
@@ -44,6 +61,7 @@ void editor_init(Editor *e) {
   e->files = NULL;
   e->files_len = 0;
   e->should_refresh = false;
+  e->path = get_path();
   
   // INIT TEXT_PAD
   e->textPad = NULL;
@@ -67,7 +85,6 @@ void editor_init(Editor *e) {
     die("Could not init popupArea");
   wresize(e->popupArea, 30, 60);
   wbkgd(e->popupArea, COLOR_PAIR(2));
-
 }
 
 void print_text_area(Editor *e, GapBuffer *g) {
@@ -113,19 +130,6 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c) {
 }
 #endif //SHOW_BAR
 
-char *get_path() {
-  #define PATH_MAX 4096
-  char buffer[PATH_MAX];
-  if (getcwd(buffer, PATH_MAX) == NULL) {
-    perror("getcwd");
-    return NULL;
-  }
-  u16 cwd_len = strlen(buffer) + 1;
-  char *path = malloc(cwd_len);
-  strcpy(path, buffer);
-  return path;
-}
-
 void print_files(Editor *e) {
   int line = 2;
   for (int i = 0; i < e->files_len; i++, line++) {
@@ -153,15 +157,7 @@ void open_open_file(GapBuffer *g, Editor *e) {
   gb_read_file(g, e->files[e->chosen_file]);
 }
 
-typedef enum {
-  TEXT, OPEN
-} State;
-
-
-/************************** #MAIN ********************************/
-
-int main(int argc, char **argv) {
-
+void ncurses_init() {
   initscr();
   start_color();
   atexit((void*)endwin);
@@ -173,6 +169,18 @@ int main(int argc, char **argv) {
   init_pair(2, COLOR_BLACK, COLOR_GREEN);
   init_pair(3, COLOR_RED, COLOR_BLACK);
   init_pair(4, COLOR_WHITE, COLOR_RED);
+}
+
+typedef enum {
+  TEXT, OPEN
+} State;
+
+
+/************************** #MAIN ********************************/
+
+int main(int argc, char **argv) {
+
+  ncurses_init();
 
   // TODO maybe for refreshing in TTY
   // struct timeval tp;
@@ -188,9 +196,8 @@ int main(int argc, char **argv) {
   g.buf = calloc(g.cap, sizeof(char));
 
 
-  char *path = get_path();
-
-  get_file_system(path, &(e.files), &(e.files_len));
+  // TODO () necessary?
+  get_file_system(e.path, &(e.files), &(e.files_len));
 
 
   State state = TEXT;

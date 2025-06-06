@@ -265,6 +265,27 @@ bool gb_move_left(GapBuffer *g) {
 	return true;
 }
 
+bool gb_home(GapBuffer *g) {
+  if (g->col == 0 || g->point <= 0) {
+     return false;
+   }
+
+  g->point -= gb_width_left(g);
+  g->col = 0;
+  return true;
+}
+
+bool gb_end(GapBuffer *g) {
+  if (gb_get_current(g) == 10 || g->point >= g->size -1) {
+    return false;
+  }
+
+  g->point += gb_width_right(g);
+  g->col = g->line_width - 1;
+  return true;
+}
+ 
+
 bool gb_move_up(GapBuffer *g) {
   if (g->lin == 0) {
     return false;

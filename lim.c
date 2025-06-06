@@ -255,6 +255,14 @@ int main(int argc, char **argv) {
       }
     }
 
+    else if (state == TEXT && c == KEY_HOME) {
+      changed = gb_home(&g);
+    }
+
+    else if (state == TEXT && c == KEY_END) {
+      changed = gb_end(&g);
+    }
+
     else if (c == 263 || c == CTRL('u')) {
       changed = gb_backspace(&g);
       draw_line_area(&g, lineArea);

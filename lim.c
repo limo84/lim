@@ -1,5 +1,6 @@
 // TODO
 //
+// [ ] cleanup
 // [ ] e.line-- bei backspace
 // [X] scroll linePad 
 // [X] move cursor to textPad at start
@@ -8,7 +9,6 @@
 // [X] change controls
 // [X] create readme
 // [X] make statusLine optional
-// [ ] cleanup
 // [ ] save in correct file
 // [ ] select text
 // [ ] copy / paste from clipboard
@@ -48,8 +48,8 @@ typedef struct {
   u16 screen_x;        // width of window in cols
   u8 screen_line;      // line of the point on the screen
   u32 pad_pos;         // offset from top of pad to top of screen
-  char *path;          // path
-  char **files;        // files
+  char *path;          // basepath of the current Project
+  char **files;        // files below basepath
   u32 chosen_file;     // selected file in open_file menu
   u32 files_len;       // amount of files found in path
   bool should_refresh; // if the editor should refresh

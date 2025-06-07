@@ -177,11 +177,12 @@ void ncurses_init() {
   init_pair(3, COLOR_RED, COLOR_BLACK);
   init_pair(4, COLOR_WHITE, COLOR_RED);
   raw();
+  nonl(); // turn (KEY|LK)_ENTER into MY_KEY_ENTER|13
   noecho();
 }
 
 
-void handle_menu(Editor *e, GapBuffer *g, int c) {
+void handle_open_state(Editor *e, GapBuffer *g, int c) {
   
   if (c == KEY_UP || c == CTRL('i')) {
     open_move_up(e);
@@ -254,24 +255,20 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     gb_write_to_file(g);
   }
     
-  else if (c == CTRL('o')) {
-    gb_jump(g);
-    g->buf[g->front] = '\n';
-    g->size++;
-    g->front++;
-    g->point++;
-    if (e->screen_line >= e->screen_y - 8)
-      e->pad_pos++;
-    else
-      e->screen_line++;
-    g->lin += 1;
-    g->col = 0;
-    g->maxlines++;
-    gb_refresh_line_width(g);
+  else if (c == CTRL('o') || c == MY_KEY_ENTER) {
+    gb_enter(g);
     draw_line_area(e, g);
     e->should_refresh = true;
   }
   
+  else if (c == KEY_HOME) {
+    e->should_refresh = gb_home(g);
+  }
+
+  else if (c == KEY_END) {
+    e->should_refresh = gb_end(g);
+  }
+    
   else if (c >= 32 && c <= 126) {
     gb_jump(g);
     g->buf[g->front] = c;
@@ -320,7 +317,7 @@ int main(int argc, char **argv) {
   mvwin(statArea, e.screen_y - 1, 0);
   wattrset(statArea, COLOR_PAIR(4));
   #endif //SHOW_BAR
- 
+  
   if (argc > 1) {
     gb_read_file(&g, argv[1]);
     e.should_refresh = true;
@@ -331,7 +328,7 @@ int main(int argc, char **argv) {
   do {
     switch (e.state) {
       case OPEN:
-        handle_menu(&e, &g, c);
+        handle_open_state(&e, &g, c);
         break;
       case TEXT:
         handle_text_state(&e, &g, c);

@@ -190,6 +190,7 @@ int main(int argc, char **argv) {
   wbkgd(popupArea, COLOR_PAIR(2));
 
   raw();
+  nonl(); // turn (KEY|LK)_ENTER into MY_KEY_ENTER|13
   keypad(textPad, TRUE);
   noecho();
   
@@ -235,10 +236,16 @@ int main(int argc, char **argv) {
             e.screen_line++;
         }
       }
+      // FIXME
+      // Y NO changed??
+      // Y NOT IN state == TEXT?
       gb_move_right(&g);
     }
     
     else if (c == KEY_LEFT || c == CTRL('j')) {
+      // FIXME
+      // Y NO changed??
+      // Y NO state == TEXT??
       gb_move_left(&g);
       if (gb_get_current(&g) == LK_ENTER) {
         if (e.screen_line <= 8 && e.pad_pos > 0)
@@ -246,6 +253,14 @@ int main(int argc, char **argv) {
         else
           e.screen_line--;
       }
+    }
+
+    else if (state == TEXT && c == KEY_HOME) {
+      e.should_refresh = gb_home(&g);
+    }
+
+    else if (state == TEXT && c == KEY_END) {
+      e.should_refresh = gb_end(&g);
     }
 
     else if (c == 263 || c == CTRL('u')) {
@@ -257,21 +272,9 @@ int main(int argc, char **argv) {
       gb_write_to_file(&g);
     }
     
-    else if (c == CTRL('o')) {
+    else if (c == CTRL('o') || c == MY_KEY_ENTER) {
       if (state == TEXT) {
-        gb_jump(&g);
-        g.buf[g.front] = '\n';
-        g.size++;
-        g.front++;
-        g.point++;
-        if (e.screen_line >= e.screen_y - 8)
-          e.pad_pos++;
-        else
-          e.screen_line++;
-        g.lin += 1;
-        g.col = 0;
-        g.maxlines++;
-        gb_refresh_line_width(&g);
+        gb_enter(&g);
       } else {
         open_open_file(&g, &e, files);
         e.screen_line = 0;

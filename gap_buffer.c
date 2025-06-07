@@ -18,6 +18,7 @@
 #define CTRL(c) ((c) & 037)
 #define STR_Q 17
 #define LK_ENTER 10
+#define MY_KEY_ENTER 13
 #define LK_UP 65
 #define LK_DOWN 258
 #define LK_RIGHT 67
@@ -173,11 +174,14 @@ u16 gb_prev_line_width(GapBuffer *g) {
 
 u16 gb_width_left(GapBuffer *g) {
   u32 old_point = g->point;
+  // needed to switch cases for case of first line being only "\n"
+  // reproduce (now working): open file, enter, enter, backspace, backspace
+  // but line_start is 0 for 2nd line und 2 for 3rd line :(
   for (int i = 0; i < 10000; i++) {
-    if (g->point - i == 0)
-      return i;
     if (i > 0 && gb_get_offset(g, -i) == LK_ENTER)
       return i - 1;
+    if (g->point - i == 0)
+      return i;
   }
   die("should never be reached");
 }
@@ -191,6 +195,18 @@ u16 gb_width_right(GapBuffer *g) {
       return i;
   }
   die("should never be reached");
+}
+
+void gb_enter(GapBuffer *g) {
+  gb_jump(g);
+  g->buf[g->front] = '\n';
+  g->size++;
+  g->front++;
+  g->point++;
+  g->lin += 1;
+  g->col = 0;
+  g->maxlines++;
+  gb_refresh_line_width(g);
 }
 
 bool gb_backspace(GapBuffer *g) {
@@ -249,6 +265,28 @@ bool gb_move_left(GapBuffer *g) {
 	return true;
 }
 
+bool gb_home(GapBuffer *g) {
+  if (g->col == 0 || g->point <= 0) {
+     return false;
+   }
+
+  g->point -= gb_width_left(g);
+  g->col = 0;
+  return true;
+}
+
+bool gb_end(GapBuffer *g) {
+  if (gb_get_current(g) == 10 || g->point >= g->size -1) {
+    return false;
+  }
+
+  g->point += gb_width_right(g);
+  g->col = g->line_width - 1;
+  return true;
+}
+
+// FIXME: open file, enter, KEY_UP
+// FIXME: open file, KEY_DOWN, enter, KEY_UP, KEY_UP, KEY_DOWN
 bool gb_move_up(GapBuffer *g) {
   if (g->lin == 0) {
     return false;
@@ -262,6 +300,8 @@ bool gb_move_up(GapBuffer *g) {
   return true;
 }
 
+// FIXME open file, KEY_DOWN, enter, KEY_UP, KEY_DOWN
+// FIXME open file, KEY_DOWN, enter, enter, KEY_UP, KEY_UP, KEY_DOWN, KEY_DOWN
 bool gb_move_down(GapBuffer *g) {
   if (g->lin >= g->maxlines - 2) { // TODO ?
     return false;

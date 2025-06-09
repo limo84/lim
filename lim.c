@@ -4,8 +4,8 @@
 // [X] e.line-- bei backspace
 // [X] scroll linePad 
 // [X] move cursor to textPad at start
-// [ ] dont show cursor in popup
-// [ ] make popup nicer
+// [X] dont show cursor in popup
+// [X] make popup nicer
 // [X] change controls
 // [X] create readme
 // [X] make statusLine optional
@@ -15,10 +15,10 @@
 //
 // [ ] increase buffer when necessary
 // [ ] increase pad size when necessary
-// 
+// [ ] screen resize
+// [ ] single line in gb -> multiple in e ? just break line?
 
 #include "gap_buffer.c"
-
 
 /************************ #MISC ******************************/
 
@@ -37,7 +37,6 @@ char *get_path() {
 
 /************************* #EDITOR ******************************/
 
-#define SHOW_BAR 1
 
 typedef enum {
   TEXT, OPEN
@@ -53,10 +52,13 @@ typedef struct {
   u32 chosen_file;     // selected file in open_file menu
   u32 files_len;       // amount of files found in path
   bool should_refresh; // if the editor should refresh
+  State state;         // the state of the editor
   WINDOW *textPad;     // the area for the text
   WINDOW *linePad;     // the area for the linenumbers
   WINDOW *popupArea;   // the area for dialogs
-  State state;         // the state of the editor
+  #if SHOW_BAR
+  WINDOW *statArea;
+  #endif
 } Editor;
 
 void editor_init(Editor *e) {
@@ -88,11 +90,22 @@ void editor_init(Editor *e) {
   
   // INIT POPUP_AREA
   e->popupArea = NULL;
-  e->popupArea = newwin(5, 30, 10, 10);
+  u16 height = 40;
+  u16 width = 80;
+  u16 line = (e->screen_y - height) / 2;
+  u16 col = (e->screen_x - width) / 2;
+  e->popupArea = newwin(height, width, line, col);
   if (!e->popupArea)
     die("Could not init popupArea");
-  wresize(e->popupArea, 30, 60);
-  wbkgd(e->popupArea, COLOR_PAIR(2));
+  box(e->popupArea, '|', '-');
+  //wbkgd(e->popupArea, COLOR_PAIR(2));
+  
+  // INIT STAT_AREA
+  #if SHOW_BAR
+  e->statArea = newwin(1, e->screen_x, 0, 0);
+  mvwin(e->statArea, e->screen_y - 1, 0);
+  wattrset(e->statArea, COLOR_PAIR(4));
+  #endif //SHOW_BAR
 }
 
 void print_text_area(Editor *e, GapBuffer *g) {
@@ -139,14 +152,18 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c) {
 #endif //SHOW_BAR
 
 void print_files(Editor *e) {
-  int line = 2;
+  wattrset(e->popupArea, COLOR_PAIR(1));
+  box(e->popupArea, ACS_VLINE, ACS_HLINE);
+  wattrset(e->popupArea, COLOR_PAIR(0));
+  mvwprintw(e->popupArea, 2, 4, "PATH: %s", e->path);
+  int line = 4;
   for (int i = 0; i < e->files_len; i++, line++) {
     if (i == e->chosen_file)
       wattrset(e->popupArea, COLOR_PAIR(4));
     else
-      wattrset(e->popupArea, COLOR_PAIR(2));
+      wattrset(e->popupArea, COLOR_PAIR(1));
 
-    mvwprintw(e->popupArea, line, 3, "%s", e->files[i]);
+    mvwprintw(e->popupArea, line, 4, "%s", e->files[i]);
   }
 }
 
@@ -317,6 +334,30 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   // }
 }
 
+void draw_editor(Editor *e, GapBuffer *g, int c) {
+  curs_set(1);
+  u8 last_line = 0;
+  #if SHOW_BAR
+  print_status_line(e->statArea, g, e, c);
+  wrefresh(e->statArea);
+  last_line = 1;
+  #endif // SHOW_BAR
+  if (e->state == TEXT && e->should_refresh) {
+    print_text_area(e, g);
+  }
+  refresh();
+  wmove(e->textPad, g->lin, g->col);
+  prefresh(e->linePad, e->pad_pos, 0, 0, 0, e->screen_y - 1 - last_line, 4);
+  prefresh(e->textPad, e->pad_pos, 0, 0, 4, e->screen_y - 1 - last_line, e->screen_x - 1);
+
+  if (e->state == OPEN && e->should_refresh) {
+    curs_set(0);
+    wclear(e->popupArea);
+    print_files(e);
+    wrefresh(e->popupArea);
+  }
+}
+
 
 /************************** #MAIN ********************************/
 
@@ -339,12 +380,7 @@ int main(int argc, char **argv) {
 
   get_file_system(e.path, &e.files, &e.files_len); 
   
-  #if SHOW_BAR
-  WINDOW *statArea;
-  statArea = newwin(1, e.screen_x, 0, 0);
-  mvwin(statArea, e.screen_y - 1, 0);
-  wattrset(statArea, COLOR_PAIR(4));
-  #endif //SHOW_BAR
+  
   
   if (argc > 1) {
     gb_read_file(&g, argv[1]);
@@ -362,23 +398,8 @@ int main(int argc, char **argv) {
         handle_text_state(&e, &g, c);
         break;
     }
-    #if SHOW_BAR
-    print_status_line(statArea, &g, &e, c);
-    wrefresh(statArea);
-    #endif // SHOW_BAR
-    if (e.state == TEXT && e.should_refresh) {
-      print_text_area(&e, &g);
-    }
-    refresh();
-    wmove(e.textPad, g.lin, g.col);
-    prefresh(e.linePad, e.pad_pos, 0, 0, 0, e.screen_y - 2, 4);
-    prefresh(e.textPad, e.pad_pos, 0, 0, 4, e.screen_y - 2, e.screen_x - 1);
-
-    if (e.state == OPEN && e.should_refresh) {
-      wclear(e.popupArea);
-      print_files(&e);
-      wrefresh(e.popupArea);
-    }
+    draw_editor(&e, &g, c);
+    
     e.should_refresh = false;
   } while ((c = wgetch(e.textPad)) != STR_Q);
   

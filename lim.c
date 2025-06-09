@@ -62,6 +62,7 @@ typedef struct {
 void editor_init(Editor *e) {
   e->screen_y = 0;
   e->screen_x = 0;
+  e->screen_line = 0;
   e->pad_pos = 0;
   e->chosen_file = 0;
   e->files = NULL;
@@ -159,9 +160,13 @@ void open_move_down(Editor *e) {
   e->should_refresh = true;
 }
 
-void open_open_file(GapBuffer *g, Editor *e) {
-  gb_clear_buffer(g);
+void open_open_file(Editor *e, GapBuffer *g) {
+  //gb_clear_buffer(g);
   gb_read_file(g, e->files[e->chosen_file]);
+  e->screen_line = 0;
+  e->state = TEXT;
+  draw_line_area(e, g);
+  e->should_refresh = true;
 }
 
 void ncurses_init() {
@@ -181,69 +186,72 @@ void ncurses_init() {
   noecho();
 }
 
+void text_move_up(Editor *e, GapBuffer *g) {
+  if (gb_move_up(g)) {
+    if (e->screen_line <= 8 && e->pad_pos > 0)
+      e->pad_pos--;
+    else
+      e->screen_line--;
+  }
+}
+
+void text_move_down(Editor *e, GapBuffer *g) {
+  if (gb_move_down(g)) {
+    if (e->screen_line >= e->screen_y - 8)
+      e->pad_pos++;
+    else
+      e->screen_line++;
+  }
+}
+
+void text_move_left(Editor *e, GapBuffer *g) {
+  gb_move_left(g);
+  if (gb_get_current(g) == LK_ENTER) {
+    if (e->screen_line <= 8 && e->pad_pos > 0)
+      e->pad_pos--;
+    else
+      e->screen_line--;
+  }
+}
+
+void text_move_right(Editor *e, GapBuffer *g) {
+  if (g->lin < g->maxlines - 2 && gb_get_current(g) == LK_ENTER) {
+    if (e->screen_line >= e->screen_y - 8)
+      e->pad_pos++;
+    else
+      e->screen_line++;
+  }
+  gb_move_right(g);
+}
 
 void handle_open_state(Editor *e, GapBuffer *g, int c) {
-  
-  if (c == KEY_UP || c == CTRL('i')) {
+  e->should_refresh = true;
+  if (c == KEY_UP || c == CTRL('i'))
     open_move_up(e);
-  }
-    
-  else if (c == LK_DOWN || c == CTRL('k')) {
+  else if (c == LK_DOWN || c == CTRL('k'))
     open_move_down(e);
-  }
-
-  else if (c == CTRL('o')) {
-    open_open_file(g, e);
-    e->screen_line = 0;
+  else if (c == CTRL('o') || c == MY_KEY_ENTER)
+    open_open_file(e, g);
+  else if (c == CTRL('r'))
     e->state = TEXT;
-    draw_line_area(e, g);
-    e->should_refresh = true;
-  }
-
-  else if (c == CTRL('r')) {
-    e->state = TEXT;
-    e->should_refresh = true;
-  }
 }
 
 void handle_text_state(Editor *e, GapBuffer *g, int c) {
 
   if (c == KEY_UP || c == CTRL('i')) {
-    if (gb_move_up(g)) {
-      if (e->screen_line <= 8 && e->pad_pos > 0)
-        e->pad_pos--;
-      else
-        e->screen_line--;
-    }
+    text_move_up(e, g);
   }
 
   else if (c == LK_DOWN || c == CTRL('k')) {
-    if (gb_move_down(g)) {
-      if (e->screen_line >= e->screen_y - 8)
-        e->pad_pos++;
-      else
-        e->screen_line++;
-    }
+    text_move_down(e, g);
   }
 
   else if (c == KEY_RIGHT || c == CTRL('l')) {
-    if (g->lin < g->maxlines - 2 && gb_get_current(g) == LK_ENTER) {
-      if (e->screen_line >= e->screen_y - 8)
-        e->pad_pos++;
-      else
-        e->screen_line++;
-    }
-    gb_move_right(g);
+    text_move_right(e, g);
   }
 
   else if (c == KEY_LEFT || c == CTRL('j')) {
-    gb_move_left(g);
-    if (gb_get_current(g) == LK_ENTER) {
-      if (e->screen_line <= 8 && e->pad_pos > 0)
-        e->pad_pos--;
-      else
-        e->screen_line--;
-    }
+    text_move_left(e, g);
   }
 
   else if (c == 263 || c == CTRL('u')) {

@@ -1,22 +1,16 @@
 // TODO
 //
-// [ ] cleanup
-// [X] e.line-- bei backspace
-// [X] scroll linePad 
-// [X] move cursor to textPad at start
-// [X] dont show cursor in popup
-// [X] make popup nicer
-// [X] change controls
-// [X] create readme
-// [X] make statusLine optional
-// [ ] save in correct file
-// [ ] select text
-// [ ] copy / paste from clipboard
-//
-// [ ] increase buffer when necessary
-// [ ] increase pad size when necessary
-// [ ] screen resize
-// [ ] single line in gb -> multiple in e ? just break line?
+// [ ] CRITICAL: bug when line_width is bigger than screen_w
+// [ ] BUG: save in correct file
+// [ ] BUG: increase buffer when necessary
+// [ ] BUG: increase pad size when necessary
+// [ ] BUG: screen resize
+// [ ] FEAT: select text
+// [ ] FEAT: copy / paste inside lim
+// [ ] FEAT: indicate saved file
+// [ ] FEAT: open directories (by "lim <path>" or simply "lim" [like "lim ."])
+// [ ] FEAT?: save file before closing lim or opening another file
+// [ ] FEAT: second editor
 
 #include "gap_buffer.c"
 
@@ -49,6 +43,7 @@ typedef struct {
   u32 pad_pos;         // offset from top of pad to top of screen
   char *path;          // basepath of the current Project
   char **files;        // files below basepath
+  char *filename;      // name of the file that is currently edited
   u32 chosen_file;     // selected file in open_file menu
   u32 files_len;       // amount of files found in path
   bool should_refresh; // if the editor should refresh
@@ -69,6 +64,7 @@ void editor_init(Editor *e) {
   e->chosen_file = 0;
   e->files = NULL;
   e->files_len = 0;
+  e->filename = NULL;
   e->should_refresh = false;
   e->path = get_path();
   e->state = TEXT;
@@ -129,23 +125,24 @@ void draw_line_area(Editor *e, GapBuffer *g) {
 #if SHOW_BAR
 int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c) {
   wmove(statArea, 0, 0);
-  //wprintw(statArea, "last: %d, ", c);
-  wprintw(statArea, "ed: (%d, %d), ", g->lin + 1, g->col + 1);
+  wprintw(statArea, "last: %d", c);
+  wprintw(statArea, ", fn: %s", e->filename);
+  //wprintw(statArea, "ed: (%d, %d), ", g->lin + 1, g->col + 1);
   //wprintw(statArea, "width: %d, ", g->line_width);
-  wprintw(statArea, "point: %d, ", g->point);
-  wprintw(statArea, "pos: %d, ", gb_pos(g));
+  //wprintw(statArea, "point: %d, ", g->point);
+  //wprintw(statArea, "pos: %d, ", gb_pos(g));
   //wprintw(statArea, "front: %d, ", g->front);
   //wprintw(statArea, "C: %d, ", gb_get_current(g));
-  wprintw(statArea, "size: %d, ", g->size);
-  wprintw(statArea, "e.line: %d, ", e->screen_line);
-  wprintw(statArea, "e.pad_pos: %d, ", e->pad_pos);
+  //wprintw(statArea, "size: %d, ", g->size);
+  //wprintw(statArea, "e.line: %d, ", e->screen_line);
+  //wprintw(statArea, "e.pad_pos: %d, ", e->pad_pos);
   //wprintw(statArea, "lstart: %d, ", g->line_start);
   //wprintw(statArea, "lend: %d, ", g->line_end);
-  wprintw(statArea, "maxl: %d, ", g->maxlines);
+  //wprintw(statArea, "maxl: %d, ", g->maxlines);
   //wprintw(statArea, "wl: %d, ", gb_width_left(g));
   //wprintw(statArea, "wr: %d, ", gb_width_right(g));
-  wprintw(statArea, "cf: %d, ", e->chosen_file);
-  wprintw(statArea, "fl: %d, ", e->files_len);
+  //wprintw(statArea, "cf: %d, ", e->chosen_file);
+  //wprintw(statArea, "fl: %d, ", e->files_len);
   //wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
   wprintw(statArea, "\t\t\t");
 }
@@ -193,7 +190,12 @@ void open_move_down(Editor *e) {
 }
 
 void open_open_file(Editor *e, GapBuffer *g) {
-  gb_read_file(g, e->files[e->chosen_file]);
+  free(e->filename);
+  // TODO unsafe?
+  int len = strlen(e->files[e->chosen_file]);
+  e->filename = malloc(len + 1);
+  strcpy(e->filename, e->files[e->chosen_file]);
+  gb_read_file(g, e->filename);
   e->screen_line = 0;
   e->pad_pos = 0;
   e->state = TEXT;
@@ -300,7 +302,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   }
 
   else if (c == CTRL('s')) {
-    gb_write_to_file(g);
+    gb_write_to_file(g, e->filename);
   }
     
   else if (c == CTRL('o') || c == MY_KEY_ENTER) {
@@ -381,10 +383,13 @@ int main(int argc, char **argv) {
 
   get_file_system(e.path, &e.files, &e.files_len); 
   
-  
-  
   if (argc > 1) {
-    gb_read_file(&g, argv[1]);
+    int len = MIN(strlen(argv[1]), 100);
+    e.filename = malloc(len + 1);
+    if (!e.filename)
+      die ("could not allocate mem");
+    strncpy(e.filename, argv[1], len);
+    gb_read_file(&g, e.filename);
     e.should_refresh = true;
     draw_line_area(&e, &g);
   }
@@ -399,9 +404,8 @@ int main(int argc, char **argv) {
         handle_text_state(&e, &g, c);
         break;
     }
-    draw_editor(&e, &g, c);
-    
-    e.should_refresh = false;
+    draw_editor(&e, &g, c);  
+    e.should_refresh = false;    
   } while ((c = wgetch(e.textPad)) != STR_Q);
   
   clear();

@@ -1,7 +1,7 @@
 // TODO
 //
 // [ ] cleanup
-// [ ] e.line-- bei backspace
+// [X] e.line-- bei backspace
 // [X] scroll linePad 
 // [X] move cursor to textPad at start
 // [ ] dont show cursor in popup
@@ -150,25 +150,6 @@ void print_files(Editor *e) {
   }
 }
 
-void open_move_up(Editor *e) {
-  e->chosen_file = (e->chosen_file + e->files_len - 1) % e->files_len;
-  e->should_refresh = true;
-}
-
-void open_move_down(Editor *e) {
-  e->chosen_file = (e->chosen_file + 1) % e->files_len;
-  e->should_refresh = true;
-}
-
-void open_open_file(Editor *e, GapBuffer *g) {
-  //gb_clear_buffer(g);
-  gb_read_file(g, e->files[e->chosen_file]);
-  e->screen_line = 0;
-  e->state = TEXT;
-  draw_line_area(e, g);
-  e->should_refresh = true;
-}
-
 void ncurses_init() {
   initscr();
   start_color();
@@ -185,6 +166,23 @@ void ncurses_init() {
   nonl(); // turn (KEY|LK)_ENTER into MY_KEY_ENTER|13
   noecho();
 }
+
+void open_move_up(Editor *e) {
+  e->chosen_file = (e->chosen_file + e->files_len - 1) % e->files_len;
+}
+
+void open_move_down(Editor *e) {
+  e->chosen_file = (e->chosen_file + 1) % e->files_len;
+}
+
+void open_open_file(Editor *e, GapBuffer *g) {
+  gb_read_file(g, e->files[e->chosen_file]);
+  e->screen_line = 0;
+  e->state = TEXT;
+  draw_line_area(e, g);
+}
+
+// ---------------- #TEXT FUNCTIONS -----------------------------
 
 void text_move_up(Editor *e, GapBuffer *g) {
   if (gb_move_up(g)) {
@@ -224,6 +222,31 @@ void text_move_right(Editor *e, GapBuffer *g) {
   gb_move_right(g);
 }
 
+// TODO delete more than one character
+void text_backspace(Editor *e, GapBuffer *g) {
+  u32 maxlines = g->maxlines;
+  e->should_refresh = gb_backspace(g);
+  if (maxlines > g->maxlines) {
+    if (e->screen_line <= 8 && e->pad_pos > 0)
+      e->pad_pos--;
+    else
+      e->screen_line--;
+    draw_line_area(e, g);
+  }
+}
+
+void text_enter(Editor *e, GapBuffer *g) {
+  gb_enter(g);
+  draw_line_area(e, g);
+  e->should_refresh = true;
+  if (e->screen_line >= e->screen_y - 8)
+    e->pad_pos++;
+  else
+    e->screen_line++;
+}
+
+// ---------------- #KEY HANDLING --------------------------------
+
 void handle_open_state(Editor *e, GapBuffer *g, int c) {
   e->should_refresh = true;
   if (c == KEY_UP || c == CTRL('i'))
@@ -255,8 +278,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   }
 
   else if (c == 263 || c == CTRL('u')) {
-    e->should_refresh = gb_backspace(g);
-    draw_line_area(e, g);
+    text_backspace(e, g);
   }
 
   else if (c == CTRL('s')) {
@@ -264,9 +286,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   }
     
   else if (c == CTRL('o') || c == MY_KEY_ENTER) {
-    gb_enter(g);
-    draw_line_area(e, g);
-    e->should_refresh = true;
+    text_enter(e, g);
   }
   
   else if (c == KEY_HOME) {

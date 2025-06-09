@@ -195,6 +195,7 @@ void open_move_down(Editor *e) {
 void open_open_file(Editor *e, GapBuffer *g) {
   gb_read_file(g, e->files[e->chosen_file]);
   e->screen_line = 0;
+  e->pad_pos = 0;
   e->state = TEXT;
   draw_line_area(e, g);
 }

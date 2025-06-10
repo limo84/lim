@@ -326,6 +326,7 @@ void gb_write_to_file(GapBuffer *g, char* filename) {
     putc(c, file);
   }
   g->point = old_point;
+	fclose(file);
 }
 
 int gb_read_file(GapBuffer *g, char* filename) {

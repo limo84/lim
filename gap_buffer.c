@@ -174,6 +174,7 @@ u16 gb_prev_line_width(GapBuffer *g) {
 
 u16 gb_width_left(GapBuffer *g) {
   u32 old_point = g->point;
+  // TODO
   // needed to switch cases for case of first line being only "\n"
   // reproduce (now working): open file, enter, enter, backspace, backspace
   // but line_start is 0 for 2nd line und 2 for 3rd line :(
@@ -246,7 +247,7 @@ bool gb_move_right(GapBuffer *g) {
     g->point++;
     g->col++;
   }
-	return true;
+  return true;
 }
 
 bool gb_move_left(GapBuffer *g) {
@@ -262,7 +263,7 @@ bool gb_move_left(GapBuffer *g) {
   else {
     g->col--;
   }
-	return true;
+  return true;
 }
 
 bool gb_home(GapBuffer *g) {
@@ -296,7 +297,7 @@ bool gb_move_up(GapBuffer *g) {
   g->lin--;
   g->col = MIN(g->col, g->line_width - 1);
   g->point -= (g->col < g->line_width - 1) ? 
-      g->line_width - g->col - 1 : 0; 
+  g->line_width - g->col - 1 : 0; 
   return true;
 }
 
@@ -314,10 +315,10 @@ bool gb_move_down(GapBuffer *g) {
   return true;
 }
 
-void gb_write_to_file(GapBuffer *g) {
-  FILE *file = fopen("testfile1.txt", "w");
+void gb_write_to_file(GapBuffer *g, char* filename) {
+  FILE *file = fopen(filename, "w");
   if (!file) {
-    die("cant write to file");
+    die("Can't write to file: %s", filename);
   }
   u32 old_point = g->point;
   for (g->point = 0; g->point < g->size; g->point++) {
@@ -325,6 +326,7 @@ void gb_write_to_file(GapBuffer *g) {
     putc(c, file);
   }
   g->point = old_point;
+	fclose(file);
 }
 
 int gb_read_file(GapBuffer *g, char* filename) {

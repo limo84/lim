@@ -1,22 +1,16 @@
 // TODO
 //
-// [ ] cleanup
-// [X] e.line-- bei backspace
-// [X] scroll linePad 
-// [X] move cursor to textPad at start
-// [X] dont show cursor in popup
-// [X] make popup nicer
-// [X] change controls
-// [X] create readme
-// [X] make statusLine optional
-// [ ] save in correct file
-// [ ] select text
-// [ ] copy / paste from clipboard
-//
-// [ ] increase buffer when necessary
-// [ ] increase pad size when necessary
-// [ ] screen resize
-// [ ] single line in gb -> multiple in e ? just break line?
+// [ ] CRITICAL: bug when line_width is bigger than screen_w
+// [ ] BUG: save in correct file
+// [ ] BUG: increase buffer when necessary
+// [ ] BUG: increase pad size when necessary
+// [ ] BUG: screen resize
+// [ ] FEAT: select text
+// [ ] FEAT: copy / paste inside lim
+// [ ] FEAT: indicate saved file
+// [ ] FEAT: open directories (by "lim <path>" or simply "lim" [like "lim ."])
+// [ ] FEAT?: save file before closing lim or opening another file
+// [ ] FEAT: second editor
 
 #include "gap_buffer.c"
 
@@ -43,15 +37,17 @@ typedef enum {
 } State;
 
 typedef struct {
-  u16 screen_y;        // height of window in rows
-  u16 screen_x;        // width of window in cols
+  u16 screen_h;        // height of window in rows
+  u16 screen_w;        // width of window in cols
   u8 screen_line;      // line of the point on the screen
   u32 pad_pos;         // offset from top of pad to top of screen
   char *path;          // basepath of the current Project
   char **files;        // files below basepath
+  char *filename;      // name of the file that is currently edited
   u32 chosen_file;     // selected file in open_file menu
   u32 files_len;       // amount of files found in path
   bool should_refresh; // if the editor should refresh
+  bool dirty;
   State state;         // the state of the editor
   WINDOW *textPad;     // the area for the text
   WINDOW *linePad;     // the area for the linenumbers
@@ -62,21 +58,23 @@ typedef struct {
 } Editor;
 
 void editor_init(Editor *e) {
-  e->screen_y = 0;
-  e->screen_x = 0;
+  e->screen_h = 0;
+  e->screen_w = 0;
   e->screen_line = 0;
   e->pad_pos = 0;
   e->chosen_file = 0;
   e->files = NULL;
   e->files_len = 0;
+  e->filename = NULL;
   e->should_refresh = false;
+  e->dirty = 0;
   e->path = get_path();
   e->state = TEXT;
   
   // INIT TEXT_PAD
   e->textPad = NULL;
-  getmaxyx(stdscr, e->screen_y, e->screen_x);
-  e->textPad = newpad(1000, e->screen_x - 4);
+  getmaxyx(stdscr, e->screen_h, e->screen_w);
+  e->textPad = newpad(1000, e->screen_w - 4);
   if (!e->textPad)
     die("Could not init textPad");
   wattrset(e->textPad, COLOR_PAIR(1));
@@ -92,8 +90,8 @@ void editor_init(Editor *e) {
   e->popupArea = NULL;
   u16 height = 40;
   u16 width = 80;
-  u16 line = (e->screen_y - height) / 2;
-  u16 col = (e->screen_x - width) / 2;
+  u16 line = (e->screen_h - height) / 2;
+  u16 col = (e->screen_w - width) / 2;
   e->popupArea = newwin(height, width, line, col);
   if (!e->popupArea)
     die("Could not init popupArea");
@@ -102,13 +100,14 @@ void editor_init(Editor *e) {
   
   // INIT STAT_AREA
   #if SHOW_BAR
-  e->statArea = newwin(1, e->screen_x, 0, 0);
-  mvwin(e->statArea, e->screen_y - 1, 0);
+  e->statArea = newwin(1, e->screen_w, 0, 0);
+  mvwin(e->statArea, e->screen_h - 1, 0);
   wattrset(e->statArea, COLOR_PAIR(4));
   #endif //SHOW_BAR
 }
 
 void print_text_area(Editor *e, GapBuffer *g) {
+  wattrset(e->textPad, COLOR_PAIR(1));
   wmove(e->textPad, 0, 0);
   wclear(e->textPad);
   u32 point = g->point;
@@ -116,6 +115,10 @@ void print_text_area(Editor *e, GapBuffer *g) {
     waddch(e->textPad, gb_get_current(g));
   }
   g->point = point;
+  if (!e->dirty) {
+    wattrset(e->textPad, COLOR_PAIR(2));
+    mvwaddch(e->textPad, e->pad_pos + e->screen_h - 2 - SHOW_BAR, e->screen_w - 6, 'S');
+  }
 }
 
 void draw_line_area(Editor *e, GapBuffer *g) {
@@ -129,23 +132,24 @@ void draw_line_area(Editor *e, GapBuffer *g) {
 #if SHOW_BAR
 int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c) {
   wmove(statArea, 0, 0);
-  //wprintw(statArea, "last: %d, ", c);
-  wprintw(statArea, "ed: (%d, %d), ", g->lin + 1, g->col + 1);
+  wprintw(statArea, "last: %d", c);
+  wprintw(statArea, ", fn: %s", e->filename);
+  //wprintw(statArea, "ed: (%d, %d), ", g->lin + 1, g->col + 1);
   //wprintw(statArea, "width: %d, ", g->line_width);
-  wprintw(statArea, "point: %d, ", g->point);
-  wprintw(statArea, "pos: %d, ", gb_pos(g));
+  //wprintw(statArea, "point: %d, ", g->point);
+  //wprintw(statArea, "pos: %d, ", gb_pos(g));
   //wprintw(statArea, "front: %d, ", g->front);
   //wprintw(statArea, "C: %d, ", gb_get_current(g));
-  wprintw(statArea, "size: %d, ", g->size);
-  wprintw(statArea, "e.line: %d, ", e->screen_line);
-  wprintw(statArea, "e.pad_pos: %d, ", e->pad_pos);
+  //wprintw(statArea, "size: %d, ", g->size);
+  //wprintw(statArea, "e.line: %d, ", e->screen_line);
+  //wprintw(statArea, "e.pad_pos: %d, ", e->pad_pos);
   //wprintw(statArea, "lstart: %d, ", g->line_start);
   //wprintw(statArea, "lend: %d, ", g->line_end);
-  wprintw(statArea, "maxl: %d, ", g->maxlines);
+  //wprintw(statArea, "maxl: %d, ", g->maxlines);
   //wprintw(statArea, "wl: %d, ", gb_width_left(g));
   //wprintw(statArea, "wr: %d, ", gb_width_right(g));
-  wprintw(statArea, "cf: %d, ", e->chosen_file);
-  wprintw(statArea, "fl: %d, ", e->files_len);
+  //wprintw(statArea, "cf: %d, ", e->chosen_file);
+  //wprintw(statArea, "fl: %d, ", e->files_len);
   //wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
   wprintw(statArea, "\t\t\t");
 }
@@ -193,7 +197,12 @@ void open_move_down(Editor *e) {
 }
 
 void open_open_file(Editor *e, GapBuffer *g) {
-  gb_read_file(g, e->files[e->chosen_file]);
+  free(e->filename);
+  // TODO unsafe?
+  int len = strlen(e->files[e->chosen_file]);
+  e->filename = malloc(len + 1);
+  strcpy(e->filename, e->files[e->chosen_file]);
+  gb_read_file(g, e->filename);
   e->screen_line = 0;
   e->pad_pos = 0;
   e->state = TEXT;
@@ -213,7 +222,7 @@ void text_move_up(Editor *e, GapBuffer *g) {
 
 void text_move_down(Editor *e, GapBuffer *g) {
   if (gb_move_down(g)) {
-    if (e->screen_line >= e->screen_y - 8)
+    if (e->screen_line >= e->screen_h - 8)
       e->pad_pos++;
     else
       e->screen_line++;
@@ -232,7 +241,7 @@ void text_move_left(Editor *e, GapBuffer *g) {
 
 void text_move_right(Editor *e, GapBuffer *g) {
   if (g->lin < g->maxlines - 2 && gb_get_current(g) == LK_ENTER) {
-    if (e->screen_line >= e->screen_y - 8)
+    if (e->screen_line >= e->screen_h - 8)
       e->pad_pos++;
     else
       e->screen_line++;
@@ -257,7 +266,7 @@ void text_enter(Editor *e, GapBuffer *g) {
   gb_enter(g);
   draw_line_area(e, g);
   e->should_refresh = true;
-  if (e->screen_line >= e->screen_y - 8)
+  if (e->screen_line >= e->screen_h - 8)
     e->pad_pos++;
   else
     e->screen_line++;
@@ -297,14 +306,18 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
 
   else if (c == 263 || c == CTRL('u')) {
     text_backspace(e, g);
+    e->dirty = true;
   }
 
   else if (c == CTRL('s')) {
-    gb_write_to_file(g);
+    gb_write_to_file(g, e->filename);
+    e->dirty = false;
+    e->should_refresh = true;
   }
-    
+ 
   else if (c == CTRL('o') || c == MY_KEY_ENTER) {
     text_enter(e, g);
+    e->dirty = true;
   }
   
   else if (c == KEY_HOME) {
@@ -324,6 +337,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     g->col += 1;
     gb_refresh_line_width(g);
     e->should_refresh = true;
+    e->dirty = true;
   }
 
   else if (c == CTRL('r')) {
@@ -348,8 +362,8 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
   }
   refresh();
   wmove(e->textPad, g->lin, g->col);
-  prefresh(e->linePad, e->pad_pos, 0, 0, 0, e->screen_y - 1 - last_line, 4);
-  prefresh(e->textPad, e->pad_pos, 0, 0, 4, e->screen_y - 1 - last_line, e->screen_x - 1);
+  prefresh(e->linePad, e->pad_pos, 0, 0, 0, e->screen_h - 1 - last_line, 4);
+  prefresh(e->textPad, e->pad_pos, 0, 0, 4, e->screen_h - 1 - last_line, e->screen_w - 1);
 
   if (e->state == OPEN && e->should_refresh) {
     curs_set(0);
@@ -381,10 +395,13 @@ int main(int argc, char **argv) {
 
   get_file_system(e.path, &e.files, &e.files_len); 
   
-  
-  
   if (argc > 1) {
-    gb_read_file(&g, argv[1]);
+    int len = MIN(strlen(argv[1]), 100);
+    e.filename = malloc(len + 1);
+    if (!e.filename)
+      die ("could not allocate mem");
+    strncpy(e.filename, argv[1], len);
+    gb_read_file(&g, e.filename);
     e.should_refresh = true;
     draw_line_area(&e, &g);
   }
@@ -399,9 +416,8 @@ int main(int argc, char **argv) {
         handle_text_state(&e, &g, c);
         break;
     }
-    draw_editor(&e, &g, c);
-    
-    e.should_refresh = false;
+    draw_editor(&e, &g, c);  
+    e.should_refresh = false;    
   } while ((c = wgetch(e.textPad)) != STR_Q);
   
   clear();

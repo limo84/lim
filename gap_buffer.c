@@ -79,8 +79,8 @@ uint32_t gb_gap(GapBuffer *g) {
   return g->cap - g->size;
 }
 
-uint32_t gb_pos(GapBuffer *g) {
-  return g->point + (g->point >= g->front) * gb_gap(g);
+uint32_t gb_pos(GapBuffer *g, u32 point) {
+  return point + (point >= g->front) * gb_gap(g);
 }
 
 u32 gb_pos_offset(GapBuffer *g, i32 offset) {
@@ -93,8 +93,7 @@ u32 gb_pos_offset(GapBuffer *g, i32 offset) {
 }
 
 char gb_get_current(GapBuffer *g) {
-  u32 pos = gb_pos(g);
-  //ASSERT(pos >= 0);
+  u32 pos = gb_pos(g, g->point);
   MY_ASSERT(pos < g->cap, "g->cap: %d", g->cap);
   return g->buf[pos];
 }
@@ -173,18 +172,16 @@ u16 gb_prev_line_width(GapBuffer *g) {
 }
 
 u16 gb_width_left(GapBuffer *g) {
-  u32 old_point = g->point;
   // TODO
-  // needed to switch cases for case of first line being only "\n"
-  // reproduce (now working): open file, enter, enter, backspace, backspace
-  // but line_start is 0 for 2nd line und 2 for 3rd line :(
+
   for (int i = 0; i < 10000; i++) {
-    if (i > 0 && gb_get_offset(g, -i) == LK_ENTER)
-      return i - 1;
     if (g->point - i == 0)
       return i;
+		if (i > 0 && gb_get_offset(g, -i) == LK_ENTER)
+      return i - 1;
   }
-  die("should never be reached");
+  
+	die("should never be reached (left)");
 }
 
 u16 gb_width_right(GapBuffer *g) {
@@ -195,7 +192,7 @@ u16 gb_width_right(GapBuffer *g) {
     if (gb_get_offset(g, i) == LK_ENTER)
       return i;
   }
-  die("should never be reached");
+  die("should never be reached (right)");
 }
 
 void gb_enter(GapBuffer *g) {
@@ -286,8 +283,6 @@ bool gb_end(GapBuffer *g) {
   return true;
 }
 
-// FIXME: open file, enter, KEY_UP
-// FIXME: open file, KEY_DOWN, enter, KEY_UP, KEY_UP, KEY_DOWN
 bool gb_move_up(GapBuffer *g) {
   if (g->lin == 0) {
     return false;
@@ -301,10 +296,8 @@ bool gb_move_up(GapBuffer *g) {
   return true;
 }
 
-// FIXME open file, KEY_DOWN, enter, KEY_UP, KEY_DOWN
-// FIXME open file, KEY_DOWN, enter, enter, KEY_UP, KEY_UP, KEY_DOWN, KEY_DOWN
 bool gb_move_down(GapBuffer *g) {
-  if (g->lin >= g->maxlines - 2) { // TODO ?
+  if (g->lin >= g->maxlines - 2) {
     return false;
   }
   g->point = g->line_end + 1;

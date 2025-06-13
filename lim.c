@@ -133,14 +133,14 @@ void draw_line_area(Editor *e, GapBuffer *g) {
 int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c) {
   wmove(statArea, 0, 0);
   wprintw(statArea, "last: %d", c);
-  wprintw(statArea, ", fn: %s", e->filename);
-  //wprintw(statArea, ", ed: (%d, %d)", g->lin + 1, g->col + 1);
-  //wprintw(statArea, ", width: %d", g->line_width);
+  //wprintw(statArea, ", fn: %s", e->filename);
+  //wprintw(statArea, ", ed: (%d, %d)", g->lin, g->col);
+  wprintw(statArea, ", width: %d", g->line_width);
   wprintw(statArea, ", point: %d", g->point);
   wprintw(statArea, ", pos: %d", gb_pos(g, g->point));
   //wprintw(statArea, ", front: %d", g->front);
   //wprintw(statArea, ", C: %d", gb_get_current(g));
-  //wprintw(statArea, ", size: %d", g->size);
+  wprintw(statArea, ", size: %d", g->size);
   //wprintw(statArea, ", e.line: %d", e->screen_line);
   //wprintw(statArea, ", e.pad_pos: %d", e->pad_pos);
   //wprintw(statArea, ", lstart: %d", g->line_start);

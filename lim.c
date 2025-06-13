@@ -134,8 +134,7 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c) {
   wmove(statArea, 0, 0);
   wprintw(statArea, "last: %d", c);
   //wprintw(statArea, ", fn: %s", e->filename);
-  //wprintw(statArea, ", ed: (%d, %d)", g->lin, g->col);
-  //wprintw(statArea, ", width: %d", g->line_width);
+  //wprintw(statArea, ", ed: (%d, %d)", g->line, g->col);
   wprintw(statArea, ", point: %d", g->point);
   wprintw(statArea, ", pos: %d", gb_pos(g, g->point));
   //wprintw(statArea, ", front: %d", g->front);
@@ -143,8 +142,6 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c) {
   wprintw(statArea, ", size: %d", g->size);
   //wprintw(statArea, ", e.line: %d", e->screen_line);
   //wprintw(statArea, ", e.pad_pos: %d", e->pad_pos);
-  //wprintw(statArea, ", lstart: %d", g->line_start);
-  //wprintw(statArea, ", lend: %d", g->line_end);
   //wprintw(statArea, ", maxl: %d", g->maxlines);
   wprintw(statArea, ", wl: %d", gb_width_left(g));
   wprintw(statArea, ", wr: %d", gb_width_right(g));
@@ -184,7 +181,7 @@ void ncurses_init() {
   init_pair(3, COLOR_RED, COLOR_BLACK);
   init_pair(4, COLOR_WHITE, COLOR_RED);
   raw();
-  nonl(); // turn (KEY|LK)_ENTER into MY_KEY_ENTER|13
+  nonl(); // for LK_ENTER|13
   noecho();
 }
 
@@ -231,7 +228,7 @@ void text_move_down(Editor *e, GapBuffer *g) {
 
 void text_move_left(Editor *e, GapBuffer *g) {
   gb_move_left(g);
-  if (gb_get_current(g) == LK_ENTER) {
+  if (gb_get_current(g) == LK_NEWLINE) {
     if (e->screen_line <= 8 && e->pad_pos > 0)
       e->pad_pos--;
     else
@@ -240,7 +237,7 @@ void text_move_left(Editor *e, GapBuffer *g) {
 }
 
 void text_move_right(Editor *e, GapBuffer *g) {
-  if (g->line < g->maxlines - 2 && gb_get_current(g) == LK_ENTER) {
+  if (g->line < g->maxlines - 2 && gb_get_current(g) == LK_NEWLINE) {
     if (e->screen_line >= e->screen_h - 8)
       e->pad_pos++;
     else
@@ -280,7 +277,7 @@ void handle_open_state(Editor *e, GapBuffer *g, int c) {
     open_move_up(e);
   else if (c == LK_DOWN || c == CTRL('k'))
     open_move_down(e);
-  else if (c == CTRL('o') || c == MY_KEY_ENTER)
+  else if (c == CTRL('o') || c == LK_ENTER)
     open_open_file(e, g);
   else if (c == CTRL('r'))
     e->state = TEXT;
@@ -315,17 +312,17 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     e->should_refresh = true;
   }
  
-  else if (c == CTRL('o') || c == MY_KEY_ENTER) {
+  else if (c == CTRL('o') || c == LK_ENTER) {
     text_enter(e, g);
     e->dirty = true;
   }
   
   else if (c == KEY_HOME) {
-    e->should_refresh = gb_home(g);
+    gb_home(g);
   }
 
   else if (c == KEY_END) {
-    e->should_refresh = gb_end(g);
+    gb_end(g);
   }
     
   else if (c >= 32 && c <= 126) {
@@ -335,7 +332,6 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     g->front++;
     g->point++;
     g->col += 1;
-    //gb_refresh_line_width(g);
     e->should_refresh = true;
     e->dirty = true;
   }

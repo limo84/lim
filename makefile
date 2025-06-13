@@ -1,4 +1,4 @@
-DEFINES := -DSHOW_BAR=1
+DEFINES := -DSHOW_BAR=0
 
 lim: lim.c files.c gap_buffer.c
 	gcc lim.c files.c -lncurses $(DEFINES) && ./a.out testfile.txt

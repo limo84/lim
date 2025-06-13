@@ -135,7 +135,7 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, Editor *e, int c) {
   wprintw(statArea, "last: %d", c);
   //wprintw(statArea, ", fn: %s", e->filename);
   //wprintw(statArea, ", ed: (%d, %d)", g->lin, g->col);
-  wprintw(statArea, ", width: %d", g->line_width);
+  //wprintw(statArea, ", width: %d", g->line_width);
   wprintw(statArea, ", point: %d", g->point);
   wprintw(statArea, ", pos: %d", gb_pos(g, g->point));
   //wprintw(statArea, ", front: %d", g->front);
@@ -240,7 +240,7 @@ void text_move_left(Editor *e, GapBuffer *g) {
 }
 
 void text_move_right(Editor *e, GapBuffer *g) {
-  if (g->lin < g->maxlines - 2 && gb_get_current(g) == LK_ENTER) {
+  if (g->line < g->maxlines - 2 && gb_get_current(g) == LK_ENTER) {
     if (e->screen_line >= e->screen_h - 8)
       e->pad_pos++;
     else
@@ -335,7 +335,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     g->front++;
     g->point++;
     g->col += 1;
-    gb_refresh_line_width(g);
+    //gb_refresh_line_width(g);
     e->should_refresh = true;
     e->dirty = true;
   }
@@ -361,7 +361,7 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     print_text_area(e, g);
   }
   refresh();
-  wmove(e->textPad, g->lin, g->col);
+  wmove(e->textPad, g->line, g->col);
   prefresh(e->linePad, e->pad_pos, 0, 0, 0, e->screen_h - 1 - last_line, 4);
   prefresh(e->textPad, e->pad_pos, 0, 0, 4, e->screen_h - 1 - last_line, e->screen_w - 1);
 

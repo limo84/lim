@@ -1,16 +1,17 @@
 // TODO
 //
-// [ ] CRITICAL: bug when line_width is bigger than screen_w
-// [ ] BUG: save in correct file
+// [ ] BUG: start of file -> enter left left right|down
+// [ ] BUG: bug when line_width is bigger than screen_w
+// [X] BUG: save in correct file
 // [ ] BUG: increase buffer when necessary
 // [ ] BUG: increase pad size when necessary
 // [ ] BUG: screen resize
-// [ ] FEAT: select text
-// [ ] FEAT: copy / paste inside lim
-// [ ] FEAT: indicate saved file
-// [ ] FEAT: open directories (by "lim <path>" or simply "lim" [like "lim ."])
+// [ ] CORE: select text
+// [ ] CORE: copy / paste inside lim
+// [ ] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [ ] FEAT?: save file before closing lim or opening another file
 // [ ] FEAT: second editor
+// [ ] FEAT: indicate saved file
 
 #include "gap_buffer.c"
 

@@ -195,12 +195,17 @@ bool gb_move_up(GapBuffer *g) {
 }
 
 // TODO refactor from here
-void gb_enter(GapBuffer *g) {
+
+void gb_insert_char(GapBuffer *g, u8 c) {
   gb_jump(g);
-  g->buf[g->front] = '\n';
+  g->buf[g->front] = c;
   g->size++;
   g->front++;
   g->point++;
+}
+
+void gb_enter(GapBuffer *g) {
+  gb_insert_char(g, LK_NEWLINE);
   g->line += 1;
   g->col = 0;
   g->maxlines++;

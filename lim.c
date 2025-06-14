@@ -302,10 +302,13 @@ void handle_open_state(Editor *e, GapBuffer *g, int c) {
     open_move_up(e);
   else if (c == LK_DOWN || c == CTRL('k'))
     open_move_down(e);
-  else if (c == CTRL('o') || c == LK_ENTER)
-    open_open_file(e, g);
   else if (c == CTRL('r'))
     e->state = TEXT;
+  else if (c == CTRL('0') || c == LK_ENTER) {
+    // Save before loading a different file
+    gb_write_to_file(g, e->filename);
+    open_open_file(e, g);
+  }
 }
 
 void handle_text_state(Editor *e, GapBuffer *g, int c) {
@@ -370,9 +373,6 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   // }
 }
 
-
-
-
 /************************** #MAIN ********************************/
 
 int main(int argc, char **argv) {
@@ -418,6 +418,8 @@ int main(int argc, char **argv) {
     e.should_refresh = false;    
   } while ((c = wgetch(e.textPad)) != STR_Q);
   
+  // Save before quitting
+  gb_write_to_file(&g, e.filename);  
   clear();
   endwin();
   return 0;

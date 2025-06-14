@@ -244,6 +244,10 @@ void gb_end(GapBuffer *g) {
   g->point += width_right;
 }
 
+// TODO
+// void gb_trim_trailing()  <- trim trailing whitespaces
+
+// TODO refactor and write in 2 steps (front, back)
 void gb_write_to_file(GapBuffer *g, char* filename) {
   FILE *file = fopen(filename, "w");
   if (!file) {

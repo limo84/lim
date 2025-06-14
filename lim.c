@@ -97,6 +97,7 @@ void editor_init(Editor *e) {
   if (!e->popupArea)
     die("Could not init popupArea");
   box(e->popupArea, '|', '-');
+  //keypad(e->popupArea, true);
   //wbkgd(e->popupArea, COLOR_PAIR(2));
   
   // INIT STAT_AREA
@@ -207,7 +208,9 @@ void text_enter(Editor *e, GapBuffer *g) {
     e->screen_line++;
 }
 
-// --- DRAW STUFF ---
+
+// -------------------------------- #DRAW STUFF ------------------------------------------
+
 void print_text_area(Editor *e, GapBuffer *g) {
   wattrset(e->textPad, COLOR_PAIR(1));
   wmove(e->textPad, 0, 0);
@@ -304,7 +307,7 @@ void handle_open_state(Editor *e, GapBuffer *g, int c) {
     open_move_down(e);
   else if (c == CTRL('r'))
     e->state = TEXT;
-  else if (c == CTRL('0') || c == LK_ENTER) {
+  else if (c == CTRL('o') || c == LK_ENTER) {
     // Save before loading a different file
     gb_write_to_file(g, e->filename);
     open_open_file(e, g);
@@ -329,7 +332,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     text_move_left(e, g);
   }
 
-  else if (c == 263 || c == CTRL('u')) {
+  else if (c == KEY_BACKSPACE || c == CTRL('u')) {
     text_backspace(e, g);
     e->dirty = true;
   }
@@ -416,10 +419,11 @@ int main(int argc, char **argv) {
     }
     draw_editor(&e, &g, c);  
     e.should_refresh = false;    
-  } while ((c = wgetch(e.textPad)) != STR_Q);
+    c = wgetch(e.textPad);
+  } while (c != CTRL('q') && c != CTRL('b'));
   
-  // Save before quitting
-  gb_write_to_file(&g, e.filename);  
+  if (c == CTRL('q'))
+    gb_write_to_file(&g, e.filename);  
   clear();
   endwin();
   return 0;

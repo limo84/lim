@@ -1,4 +1,4 @@
-// TODO
+/ TODO
 //
 // [X] BUG: start of file -> enter left left right|down
 // [ ] BUG: bug when line_width is bigger than screen_w

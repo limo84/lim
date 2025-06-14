@@ -249,9 +249,11 @@ void gb_end(GapBuffer *g) {
 
 // TODO refactor and write in 2 steps (front, back)
 void gb_write_to_file(GapBuffer *g, char* filename) {
+  if (filename == NULL)
+    return;
   FILE *file = fopen(filename, "w");
   if (!file) {
-    die("Can't write to file: %s", filename);
+    die("[gap_buffer.c] Can't write to file: %s", filename);
   }
   u32 old_point = g->point;
   for (g->point = 0; g->point < g->size; g->point++) {

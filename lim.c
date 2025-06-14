@@ -1,4 +1,4 @@
-/ TODO
+// TODO
 //
 // [X] BUG: start of file -> enter left left right|down
 // [ ] BUG: bug when line_width is bigger than screen_w
@@ -16,6 +16,19 @@
 #include "gap_buffer.c"
 
 /************************ #MISC ******************************/
+
+#define die(format, ...) __die(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
+
+void __die(const char* file, int line, const char *format, ...) {
+  endwin();
+  printf("\n\033[91m[%s: %d]\033[39m ", file, line);
+  va_list args;
+  va_start(args, format);
+    vprintf(format, args);
+  va_end(args);
+  printf("\n\n");
+  exit(0);
+}
 
 char *get_path() {
   #define PATH_MAX 4096
@@ -122,6 +135,7 @@ void ncurses_init() {
   init_pair(2, COLOR_BLACK, COLOR_GREEN);
   init_pair(3, COLOR_RED, COLOR_BLACK);
   init_pair(4, COLOR_WHITE, COLOR_RED);
+  init_pair(5, COLOR_BLUE, COLOR_BLACK);
   raw();
   nonl(); // for LK_ENTER|13
   noecho();
@@ -211,15 +225,30 @@ void text_enter(Editor *e, GapBuffer *g) {
 
 // -------------------------------- #DRAW STUFF ------------------------------------------
 
+void print_normal(Editor *e, GapBuffer *g) {
+  u32 point = g->point;
+  for (u32 i = 0; i < g->size; i++) {
+    waddch(e->textPad, gb_get_char(g, i));
+  }
+  g->point = point;
+}
+
+void print_c_file(Editor *e, GapBuffer *g) {
+  u32 point = g->point;
+  for (u32 i = 0; i < g->size; i++) {
+    waddch(e->textPad, gb_get_char(g, i));
+  }
+  g->point = point;
+}
+
 void print_text_area(Editor *e, GapBuffer *g) {
   wattrset(e->textPad, COLOR_PAIR(1));
   wmove(e->textPad, 0, 0);
   wclear(e->textPad);
-  u32 point = g->point;
-  for (g->point = 0; g->point < g->size; g->point++) {
-    waddch(e->textPad, gb_get_current(g));
-  }
-  g->point = point;
+  
+  u16 file_len = strlen(e->filename);
+  //die("[lim.c: print_text_area] file ending: %s, %d", e->filename + file_len - 2, file_len);
+  print_normal(e, g);
   if (!e->dirty) {
     wattrset(e->textPad, COLOR_PAIR(2));
     mvwaddch(e->textPad, e->pad_pos + e->screen_h - 2 - SHOW_BAR, e->screen_w - 6, 'S');
@@ -399,10 +428,10 @@ int main(int argc, char **argv) {
   
   if (argc > 1) {
     int len = MIN(strlen(argv[1]), 100);
-    e.filename = malloc(len + 1);
+    e.filename = malloc(len);
     if (!e.filename)
       die("could not allocate mem");
-    strncpy(e.filename, argv[1], len);
+    strncpy(e.filename, argv[1], len + 1);
     gb_read_file(&g, e.filename);
     e.should_refresh = true;
   }

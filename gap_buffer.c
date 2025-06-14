@@ -1,5 +1,3 @@
-// TODO coredumps
-
 #include <ncurses.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -17,8 +15,8 @@
 
 #define CTRL(c) ((c) & 037)
 #define STR_Q 17
-#define LK_ENTER 10
-#define MY_KEY_ENTER 13
+#define LK_NEWLINE 10
+#define LK_ENTER 13
 #define LK_UP 65
 #define LK_DOWN 258
 #define LK_RIGHT 67
@@ -54,160 +52,163 @@ void die(const char *format, ...) {
 
 typedef struct {
   char *buf;
-  uint32_t cap;         // maximum capacity of gapbuffer, should be increased when needed
-  uint32_t size;        // size of written chars (frontbuffer + backbuffer)
-  uint32_t front;       // end of frontbuffer
-  uint32_t point;       // relative position of cursor inside the buffer (get absolute pos with gb_pos)
-  uint32_t line_start;  // position of next \n (or pos 0) to the left of cursor
-  uint32_t line_end;    //         ""          (or pos cap) to the right
-  uint16_t line_width;  // width of current line
-  uint16_t lin, col;    // number of lines and cols the cursor is at
-  uint16_t maxlines;    // number of maxlines of current buffer
+  u32 cap;       // maximum capacity of gapbuffer, should be increased when needed
+  u32 size;      // size of written chars (frontbuffer + backbuffer)
+  u32 front;     // end of frontbuffer
+  u32 point;     // relative position of cursor inside the buffer (get absolute pos with gb_pos)
+  u16 line, col; // number of lines and cols the cursor is at
+  u16 maxlines;  // number of maxlines of current buffer
 } GapBuffer;
 
 
-void gb_init(GapBuffer *g, uint32_t init_cap) {
+void gb_init(GapBuffer *g, u32 init_cap) {
   g->cap = init_cap;
   g->size = 0;
   g->front = 0;
   g->point = 0;
-  g->line_width = 0;
   g->maxlines = 1;
 }
 
-uint32_t gb_gap(GapBuffer *g) {
+u32 gb_gap(GapBuffer *g) {
   return g->cap - g->size;
 }
 
-uint32_t gb_pos(GapBuffer *g) {
-  return g->point + (g->point >= g->front) * gb_gap(g);
+u32 gb_pos(GapBuffer *g, u32 point) {
+  return point + (point >= g->front) * gb_gap(g);
 }
 
-u32 gb_pos_offset(GapBuffer *g, i32 offset) {
-  if (offset < 0 && g->point < -offset)
-    return 0;
-  if (offset > 0 && g->point + offset > g->size)
-    return 0;
-  u32 n = g->point + offset;
-  return n + (n >= g->front) * gb_gap(g);
+char gb_get_char(GapBuffer *g, u32 point) {
+  return g->buf[gb_pos(g, point)];
 }
 
 char gb_get_current(GapBuffer *g) {
-  u32 pos = gb_pos(g);
-  //ASSERT(pos >= 0);
-  MY_ASSERT(pos < g->cap, "g->cap: %d", g->cap);
-  return g->buf[pos];
-}
-
-char gb_get_offset(GapBuffer *g, i32 offset) {
-  u32 pos = gb_pos_offset(g, offset);
-  return g->buf[pos];
+  return gb_get_char(g, g->point);;
 }
 
 void gb_count_maxlines(GapBuffer *g) {
-  u32 old_point = g->point;
   g->maxlines = 1;
-  for (g->point = 0; g->point < g->size; g->point++)
-    if (gb_get_current(g) == LK_ENTER)
+  for (int i = 0; i < g->size; i++)
+    if (gb_get_char(g, i) == LK_NEWLINE)
       g->maxlines += 1;
-  g->point = old_point;
 }
 
-int gb_jump(GapBuffer *g) {
+void gb_jump(GapBuffer *g) {
   // MOVE DATA TO END
   if (g->point < g->front) {
-    size_t n = g->front - g->point;
+    u32 n = g->front - g->point;
     memmove(g->buf + g->point + gb_gap(g), g->buf + g->point, n);
     g->front = g->point;
   }
   // MOVE DATA TO FRONT 
   else if (g->point > g->front) {
-    size_t n = g->point - g->front;
+    u32 n = g->point - g->front;
     memmove(g->buf + g->front, g->buf + gb_gap(g) + g->front, n);
     g->front = g->point;
   }
 }
 
-void gb_refresh_line_width(GapBuffer *g) {
-  uint32_t old_point = g->point;
-  uint32_t point_right = 0;
-  uint32_t point_left = 0;
-  
-  // MOVE RIGHT
-  for (; g->point < g->size; g->point++) {
-    if (gb_get_current(g) == 10) {
-      point_right = g->point;
-      break;
-    }
-  }
-
-  // MOVE LEFT
-  for (g->point = point_right - 1; g->point > 0; g->point--) {
-    if (gb_get_current(g) == 10) {
-      point_left = g->point;
-      break;
-    }
-  }
-
-  g->line_start = point_left + (point_left == 0 ? 0 : 1);
-  g->line_end = point_right;    
-  g->line_width = g->line_end - g->line_start + 1;
-  g->point = old_point;
-}
-
-// remove?
-u16 gb_prev_line_width(GapBuffer *g) {
-  
-  if (g->lin == 0)
-    return 0;
-  if (g->col != 0)
-    return 0;
-
-  g->point--;
-  gb_refresh_line_width(g);
-  u16 prev_line_width = g->line_end - g->line_start;
-  g->point++;
-  gb_refresh_line_width(g);
-  
-  return prev_line_width;
-}
-
 u16 gb_width_left(GapBuffer *g) {
-  u32 old_point = g->point;
-  // TODO
-  // needed to switch cases for case of first line being only "\n"
-  // reproduce (now working): open file, enter, enter, backspace, backspace
-  // but line_start is 0 for 2nd line und 2 for 3rd line :(
   for (int i = 0; i < 10000; i++) {
-    if (i > 0 && gb_get_offset(g, -i) == LK_ENTER)
-      return i - 1;
     if (g->point - i == 0)
       return i;
+    if (gb_get_char(g, g->point - i - 1) == LK_NEWLINE)
+      return i;
   }
-  die("should never be reached");
+  die("should never be reached (left)");
 }
 
 u16 gb_width_right(GapBuffer *g) {
-  u32 old_point = g->point;
   for (int i = 0; i < 10000; i++) {
     if (g->point + i == g->size - 1)
       return i;
-    if (gb_get_offset(g, i) == LK_ENTER)
+    if (gb_get_char(g, g->point + i) == LK_NEWLINE)
       return i;
   }
-  die("should never be reached");
+  die("should never be reached (right)");
 }
 
-void gb_enter(GapBuffer *g) {
+// --------------- MOVE -----------------------------
+
+bool gb_move_left(GapBuffer *g) {
+  if (g->point == 0) {
+    return false;
+  }
+  g->point--;
+  g->col--;
+  if (gb_get_current(g) == LK_NEWLINE) {
+    g->line--;
+    g->col = gb_width_left(g);
+  }
+  return true;
+}
+
+bool gb_move_right(GapBuffer *g) {
+  if (g->point == g->size - 1) {
+    return false;
+  }
+  if (gb_get_current(g) == LK_NEWLINE) {
+    g->point++;
+    g->line++;
+    g->col = 0;
+  }
+  else {
+    g->point++;
+    g->col++;
+  }
+  return true;
+}
+
+bool gb_move_down(GapBuffer *g) {
+  if (g->line == g->maxlines - 2) {
+    return false;
+  }
+  // move to start of next line
+  u16 offset = gb_width_left(g);
+  g->point += gb_width_right(g) + 1;
+  // move further right to offset
+  u16 new_width = gb_width_right(g);
+  offset = MIN(offset, new_width);
+  g->point += offset;
+  // adjust line and col
+  g->line += 1;
+  g->col = offset;
+  return true;
+}
+
+bool gb_move_up(GapBuffer *g) {
+  if (g->line == 0) {
+    return false;
+  }
+  // move to end of previous line
+  u16 offset = gb_width_left(g);
+  g->point -= (offset + 1);
+  // move to start of line
+  u16 new_width = gb_width_left(g);
+  g->point -= new_width;
+  // move to offset
+  offset = MIN(offset, new_width);
+  g->point += offset;
+  //adjust line and col
+  g->line -= 1;
+  g->col = offset;
+  return true;
+}
+
+// TODO refactor from here
+
+void gb_insert_char(GapBuffer *g, u8 c) {
   gb_jump(g);
-  g->buf[g->front] = '\n';
+  g->buf[g->front] = c;
   g->size++;
   g->front++;
   g->point++;
-  g->lin += 1;
+}
+
+void gb_enter(GapBuffer *g) {
+  gb_insert_char(g, LK_NEWLINE);
+  g->line += 1;
   g->col = 0;
   g->maxlines++;
-  gb_refresh_line_width(g);
 }
 
 bool gb_backspace(GapBuffer *g) {
@@ -222,97 +223,25 @@ bool gb_backspace(GapBuffer *g) {
     g->point--;
   } 
   else {
-    g->lin--;
+    g->line--;
     g->maxlines--;
     g->point--;
     g->col = gb_width_left(g);
   }
   g->size--;
   g->front--;
-  gb_refresh_line_width(g);
   return true;
 }
 
-bool gb_move_right(GapBuffer *g) {
-  if (g->point >= g->size - 1) {
-    return false;
-  }
-  if (gb_get_current(g) == 10) {
-    g->point++;
-    g->lin++;
-    g->col = 0;
-    gb_refresh_line_width(g);
-  }
-  else {
-    g->point++;
-    g->col++;
-  }
-  return true;
-}
-
-bool gb_move_left(GapBuffer *g) {
-  if (g->point <= 0) {
-    return false;
-  }
-  g->point--;
-  if (gb_get_current(g) == 10) {
-    gb_refresh_line_width(g);
-    g->lin--;
-    g->col = g->line_width - 1;
-  }
-  else {
-    g->col--;
-  }
-  return true;
-}
-
-bool gb_home(GapBuffer *g) {
-  if (g->col == 0 || g->point <= 0) {
-     return false;
-   }
-
+void gb_home(GapBuffer *g) {
   g->point -= gb_width_left(g);
   g->col = 0;
-  return true;
 }
 
-bool gb_end(GapBuffer *g) {
-  if (gb_get_current(g) == 10 || g->point >= g->size -1) {
-    return false;
-  }
-
-  g->point += gb_width_right(g);
-  g->col = g->line_width - 1;
-  return true;
-}
-
-// FIXME: open file, enter, KEY_UP
-// FIXME: open file, KEY_DOWN, enter, KEY_UP, KEY_UP, KEY_DOWN
-bool gb_move_up(GapBuffer *g) {
-  if (g->lin == 0) {
-    return false;
-  }
-  g->point = g->line_start - 1;
-  gb_refresh_line_width(g);
-  g->lin--;
-  g->col = MIN(g->col, g->line_width - 1);
-  g->point -= (g->col < g->line_width - 1) ? 
-  g->line_width - g->col - 1 : 0; 
-  return true;
-}
-
-// FIXME open file, KEY_DOWN, enter, KEY_UP, KEY_DOWN
-// FIXME open file, KEY_DOWN, enter, enter, KEY_UP, KEY_UP, KEY_DOWN, KEY_DOWN
-bool gb_move_down(GapBuffer *g) {
-  if (g->lin >= g->maxlines - 2) { // TODO ?
-    return false;
-  }
-  g->point = g->line_end + 1;
-  gb_refresh_line_width(g);
-  g->lin++;
-  g->col = MIN(g->col, g->line_width - 1);
-  g->point += g->col;
-  return true;
+void gb_end(GapBuffer *g) {
+  u16 width_right = gb_width_right(g);
+  g->col += width_right;
+  g->point += width_right;
 }
 
 void gb_write_to_file(GapBuffer *g, char* filename) {
@@ -326,7 +255,7 @@ void gb_write_to_file(GapBuffer *g, char* filename) {
     putc(c, file);
   }
   g->point = old_point;
-	fclose(file);
+  fclose(file);
 }
 
 int gb_read_file(GapBuffer *g, char* filename) {
@@ -334,8 +263,7 @@ int gb_read_file(GapBuffer *g, char* filename) {
   g->size = 0;
   g->front = 0;
   g->point = 0;
-  g->line_width = 0;
-  g->lin = 0;
+  g->line = 0;
   g->col = 0;
   g->maxlines = 1;
  
@@ -349,15 +277,6 @@ int gb_read_file(GapBuffer *g, char* filename) {
 
   fread(g->buf + g->cap - g->size, g->size, 1, file);
   gb_count_maxlines(g);
-  gb_refresh_line_width(g);
   fclose(file);
   return 0;
-}
-
-// remove?
-void gb_clear_buffer(GapBuffer *g) {
-  //free(g->buf);
-  g->size = 0;
-  g->front = 0;
-  g->point = 0;
 }

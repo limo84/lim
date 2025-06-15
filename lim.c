@@ -17,7 +17,7 @@
 
 /************************ #MISC ******************************/
 
-
+#define TEXT_WHITE(w) wattrset(w, COLOR_PAIR(0)) 
 
 char *get_path() {
   #define PATH_MAX 4096
@@ -214,14 +214,71 @@ void text_enter(Editor *e, GapBuffer *g) {
 
 // -------------------------------- #DRAW STUFF ------------------------------------------
 
-void print_normal(Editor *e, GapBuffer *g) {
-  for (u32 i = 0; i < g->size; i++) {
-    waddch(e->textPad, gb_get_char(g, i));
-  }
+bool is_char_in(char c, char f, ...) {
+  va_list args;
+  va_start(args, f);
+    if (c == args)
+      return true;
+  va_end(args);
+  return false;
 }
 
 void print_c_file(Editor *e, GapBuffer *g) {
-  wattrset(e->textPad, COLOR_PAIR(5));
+  
+  char *token = malloc(1024); // TODO
+  
+  //wattrset(e->textPad, COLOR_PAIR(5));
+  
+  //endwin();
+  bool is_string = false;
+  bool is_hashed = false;
+  bool is_line_comment = false;
+  
+
+  for (u32 i = 0; i < g->size;) {
+    
+    char c = gb_get_char(g, i);
+    
+    if (c == ' ' || c == LK_NEWLINE) {
+      waddch(e->textPad, c);
+      i++;
+      continue;
+    }
+
+    if (is_char_in(c, '"')) {
+      is_string = !is_string;
+      wattrset(e->textPad, COLOR_PAIR(1));
+      waddch(e->textPad, c);
+      i++;
+      continue;
+    }
+
+    u32 j = 0;
+    for (; j < g->size; j++) {
+      c = gb_get_char(g, i + j);
+      if (c == ' ' || c == LK_NEWLINE || c == '"')
+        break;
+      token[j] = c;
+    }
+    i += j;
+    token[j] = 0;
+    
+
+    if (is_string) {
+    }
+    else if (strcmp(token, "int") == 0)
+      wattrset(e->textPad, COLOR_PAIR(5));
+    else
+      wattrset(e->textPad, COLOR_PAIR(0));
+
+    waddstr(e->textPad, token);
+    //printf("%s\n", token);
+  }
+  //exit(0);
+  free(token);
+}
+
+void print_normal(Editor *e, GapBuffer *g) {
   for (u32 i = 0; i < g->size; i++) {
     waddch(e->textPad, gb_get_char(g, i));
   }

@@ -1,5 +1,10 @@
 // TODO
 //
+// [ ] show different bar in debug mode
+// [ ] indicate dirty file in bar
+// [ ] disable autosave
+// [ ] improve bar
+//
 // [X] BUG: start of file -> enter left left right|down
 // [ ] BUG: bug when line_width is bigger than screen_w
 // [X] BUG: save in correct file
@@ -125,6 +130,7 @@ void ncurses_init() {
   init_pair(3, COLOR_RED, COLOR_BLACK);
   init_pair(4, COLOR_WHITE, COLOR_RED);
   init_pair(5, COLOR_BLUE, COLOR_BLACK);
+  init_pair(6, COLOR_YELLOW, COLOR_BLACK);
   raw();
   nonl(); // for LK_ENTER|13
   noecho();
@@ -217,8 +223,8 @@ void text_enter(Editor *e, GapBuffer *g) {
 bool is_char_in(char c, char f, ...) {
   va_list args;
   va_start(args, f);
-    if (c == args)
-      return true;
+    //if (c == args)
+      //return true;
   va_end(args);
   return false;
 }
@@ -235,21 +241,49 @@ void print_c_file(Editor *e, GapBuffer *g) {
   bool is_line_comment = false;
   
 
-  for (u32 i = 0; i < g->size;) {
+  for (u32 i = 0; i < g->size; i++) {
     
     char c = gb_get_char(g, i);
-    
-    if (c == ' ' || c == LK_NEWLINE) {
+
+    if (is_line_comment) {
+      if (c == LK_NEWLINE) {
+        is_line_comment = false;
+        wattrset(e->textPad, COLOR_PAIR(0));
+      }
       waddch(e->textPad, c);
-      i++;
       continue;
     }
 
-    if (is_char_in(c, '"')) {
-      is_string = !is_string;
+    if (is_string) {
+      waddch(e->textPad, c);
+      if (c == '"') {
+        is_string = false;
+        wattrset(e->textPad, COLOR_PAIR(0));
+      }
+      continue;
+    }
+    
+    if (c == '/' && (i + 1) < g->size) {
+      char d = gb_get_char(g, i + 1);
+      if (d  == '/') { 
+        is_line_comment = true;
+        wattrset(e->textPad, COLOR_PAIR(3));
+        waddch(e->textPad, c);
+        waddch(e->textPad, d);
+        i += 1;
+        continue;
+      }
+    }
+
+    if (c == ' ' || c == LK_NEWLINE) {
+      waddch(e->textPad, c);
+      continue;
+    }
+
+    if (c == '"') {
+      is_string = true;
       wattrset(e->textPad, COLOR_PAIR(1));
       waddch(e->textPad, c);
-      i++;
       continue;
     }
 
@@ -260,13 +294,18 @@ void print_c_file(Editor *e, GapBuffer *g) {
         break;
       token[j] = c;
     }
-    i += j;
+    i += (j - 1);
     token[j] = 0;
     
-
-    if (is_string) {
+    // compare all
+    char *keywords[] = {"int", "char"};
+    bool is_keyword = false;
+    for (int i = 0; i < 2; i++) {
+      if (strcmp(token, keywords[i]) == 0)
+        is_keyword = true;
     }
-    else if (strcmp(token, "int") == 0)
+
+    if (is_keyword)
       wattrset(e->textPad, COLOR_PAIR(5));
     else
       wattrset(e->textPad, COLOR_PAIR(0));
@@ -498,8 +537,8 @@ int main(int argc, char **argv) {
     c = wgetch(e.textPad);
   } while (c != CTRL('q') && c != CTRL('b'));
   
-  if (c == CTRL('q'))
-    gb_write_to_file(&g, e.filename);  
+  //if (c == CTRL('q'))
+    //gb_write_to_file(&g, e.filename);  
   clear();
   endwin();
   return 0;

@@ -1,4 +1,3 @@
-#include <ncurses.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -6,6 +5,10 @@
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
+
+#if 1 // for later implementation of editors without ncurses
+#include <ncurses.h>
+#endif
 
 #include "files.h"
 
@@ -37,11 +40,16 @@ typedef int64_t i64;
 
 // ********************* #MISC *********************************/
 
-void die(const char *format, ...) {
+#define die(format, ...) __die(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
+
+void __die(const char* file, int line, const char *format, ...) {
+  endwin();
+  printf("\n\033[91m[%s: %d]\033[39m ", file, line);
   va_list args;
   va_start(args, format);
     vprintf(format, args);
   va_end(args);
+  printf("\n\n");
   exit(0);
 }
 

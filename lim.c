@@ -17,18 +17,7 @@
 
 /************************ #MISC ******************************/
 
-#define die(format, ...) __die(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
 
-void __die(const char* file, int line, const char *format, ...) {
-  endwin();
-  printf("\n\033[91m[%s: %d]\033[39m ", file, line);
-  va_list args;
-  va_start(args, format);
-    vprintf(format, args);
-  va_end(args);
-  printf("\n\n");
-  exit(0);
-}
 
 char *get_path() {
   #define PATH_MAX 4096
@@ -226,19 +215,16 @@ void text_enter(Editor *e, GapBuffer *g) {
 // -------------------------------- #DRAW STUFF ------------------------------------------
 
 void print_normal(Editor *e, GapBuffer *g) {
-  u32 point = g->point;
   for (u32 i = 0; i < g->size; i++) {
     waddch(e->textPad, gb_get_char(g, i));
   }
-  g->point = point;
 }
 
 void print_c_file(Editor *e, GapBuffer *g) {
-  u32 point = g->point;
+  wattrset(e->textPad, COLOR_PAIR(5));
   for (u32 i = 0; i < g->size; i++) {
     waddch(e->textPad, gb_get_char(g, i));
   }
-  g->point = point;
 }
 
 void print_text_area(Editor *e, GapBuffer *g) {
@@ -248,7 +234,11 @@ void print_text_area(Editor *e, GapBuffer *g) {
   
   u16 file_len = strlen(e->filename);
   //die("[lim.c: print_text_area] file ending: %s, %d", e->filename + file_len - 2, file_len);
-  print_normal(e, g);
+  if (strcmp(e->filename + file_len - 2, ".c") == 0)
+    print_c_file(e, g);
+  else
+    print_normal(e, g);
+  
   if (!e->dirty) {
     wattrset(e->textPad, COLOR_PAIR(2));
     mvwaddch(e->textPad, e->pad_pos + e->screen_h - 2 - SHOW_BAR, e->screen_w - 6, 'S');

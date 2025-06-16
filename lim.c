@@ -20,6 +20,7 @@
 
 #include "gap_buffer.c"
 
+#define LK_TICK 39
 /************************ #MISC ******************************/
 
 #define TEXT_WHITE(w) wattrset(w, COLOR_PAIR(0)) 
@@ -236,6 +237,8 @@ void print_c_file(Editor *e, GapBuffer *g) {
   //wattrset(e->textPad, COLOR_PAIR(5));
   
   //endwin();
+	
+	bool is_char = false;
   bool is_string = false;
   bool is_hashed = false;
   bool is_line_comment = false;
@@ -253,6 +256,15 @@ void print_c_file(Editor *e, GapBuffer *g) {
       waddch(e->textPad, c);
       continue;
     }
+
+		if (is_char) {
+			waddch(e->textPad, c);
+			if (c == LK_TICK) {
+				is_char = false;
+        wattrset(e->textPad, COLOR_PAIR(0));
+			}
+			continue;
+		}
 
     if (is_string) {
       waddch(e->textPad, c);
@@ -279,8 +291,15 @@ void print_c_file(Editor *e, GapBuffer *g) {
       waddch(e->textPad, c);
       continue;
     }
-
-    if (c == '"') {
+	
+		if (c == LK_TICK) {
+      is_char = true;
+      wattrset(e->textPad, COLOR_PAIR(3));
+      waddch(e->textPad, c);
+      continue;
+    }
+    
+		if (c == '"') {
       is_string = true;
       wattrset(e->textPad, COLOR_PAIR(1));
       waddch(e->textPad, c);

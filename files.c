@@ -10,6 +10,7 @@
 
 #define MAX_FILES 1000 // Maximum number of files to store
 #define PATH_MAX 4096
+#define LK_TICK 39
 
 // Global array to store file paths
 char **file_paths = NULL;

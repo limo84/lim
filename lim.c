@@ -23,7 +23,13 @@
 #define LK_TICK 39
 /************************ #MISC ******************************/
 
-#define TEXT_WHITE(w) wattrset(w, COLOR_PAIR(0)) 
+#define TEXT_RED(w) wattrset(w, COLOR_PAIR(1)) 
+#define TEXT_GREEN(w) wattrset(w, COLOR_PAIR(2))
+#define TEXT_ORANGE(w) wattrset(w, COLOR_PAIR(3))
+#define TEXT_BLUE(w) wattrset(w, COLOR_PAIR(4))
+#define TEXT_PINK(w) wattrset(w, COLOR_PAIR(5))
+#define TEXT_TEAL(w) wattrset(w, COLOR_PAIR(6))
+#define TEXT_WHITE(w) wattrset(w, COLOR_PAIR(7))
 
 char *get_path() {
   #define PATH_MAX 4096
@@ -126,12 +132,13 @@ void ncurses_init() {
   if (!has_colors()) {
     die("No Colors\n");
   }
-  init_pair(1, COLOR_GREEN, COLOR_BLACK);
-  init_pair(2, COLOR_BLACK, COLOR_GREEN);
-  init_pair(3, COLOR_RED, COLOR_BLACK);
-  init_pair(4, COLOR_WHITE, COLOR_RED);
-  init_pair(5, COLOR_BLUE, COLOR_BLACK);
-  init_pair(6, COLOR_YELLOW, COLOR_BLACK);
+  init_pair(1, 1, 0); // RED
+  init_pair(2, 2, 0); // GREEN
+  init_pair(3, 3, 0); // ORANGE
+  init_pair(4, 4, 0); // BLUE
+  init_pair(5, 5, 0); // PINK
+  init_pair(6, 6, 0); // TEAL
+  init_pair(7, 7, 0); // WHITE
   raw();
   nonl(); // for LK_ENTER|13
   noecho();
@@ -238,7 +245,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
   
   //endwin();
 	
-	bool is_char = false;
+  bool is_char = false;
   bool is_string = false;
   bool is_hashed = false;
   bool is_line_comment = false;
@@ -251,20 +258,21 @@ void print_c_file(Editor *e, GapBuffer *g) {
     if (is_line_comment) {
       if (c == LK_NEWLINE) {
         is_line_comment = false;
-        wattrset(e->textPad, COLOR_PAIR(0));
+        TEXT_GREEN(e->textPad);
+        //wattrset(e->textPad, COLOR_PAIR(0));
       }
       waddch(e->textPad, c);
       continue;
     }
 
-		if (is_char) {
-			waddch(e->textPad, c);
-			if (c == LK_TICK) {
-				is_char = false;
+    if (is_char) {
+      waddch(e->textPad, c);
+      if (c == LK_TICK) {
+        is_char = false;
         wattrset(e->textPad, COLOR_PAIR(0));
-			}
-			continue;
-		}
+      }
+      continue;
+    }
 
     if (is_string) {
       waddch(e->textPad, c);
@@ -291,15 +299,15 @@ void print_c_file(Editor *e, GapBuffer *g) {
       waddch(e->textPad, c);
       continue;
     }
-	
-		if (c == LK_TICK) {
+
+    if (c == LK_TICK) {
       is_char = true;
       wattrset(e->textPad, COLOR_PAIR(3));
       waddch(e->textPad, c);
       continue;
     }
     
-		if (c == '"') {
+    if (c == '"') {
       is_string = true;
       wattrset(e->textPad, COLOR_PAIR(1));
       waddch(e->textPad, c);
@@ -337,13 +345,14 @@ void print_c_file(Editor *e, GapBuffer *g) {
 }
 
 void print_normal(Editor *e, GapBuffer *g) {
+  TEXT_BLUE(e->textPad);
   for (u32 i = 0; i < g->size; i++) {
     waddch(e->textPad, gb_get_char(g, i));
   }
 }
 
 void print_text_area(Editor *e, GapBuffer *g) {
-  wattrset(e->textPad, COLOR_PAIR(1));
+  // wattrset(e->textPad, COLOR_PAIR(1));
   wmove(e->textPad, 0, 0);
   wclear(e->textPad);
   

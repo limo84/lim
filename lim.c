@@ -1,22 +1,21 @@
 // TODO
-//
-// [ ] show different bar in debug mode
-// [ ] indicate dirty file in bar
-// [ ] disable autosave
-// [ ] improve bar
-//
-// [X] BUG: start of file -> enter left left right|down
-// [ ] BUG: bug when line_width is bigger than screen_w
+// [X] show different bar in debug mode
+// [X] indicate dirty file in bar
+// [X] disable autosave
+// [X] improve bar
 // [X] BUG: save in correct file
-// [ ] BUG: increase buffer when necessary
-// [ ] BUG: increase pad size when necessary
+// [X] BUG: start of file -> enter left left right|down
+// [X] FEAT: indicate saved file
+//
 // [ ] BUG: screen resize
+// [ ] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [ ] CORE: select text
 // [ ] CORE: copy / paste inside lim
-// [ ] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
+// [ ] BUG: bug when line_width is bigger than screen_w
+// [ ] BUG: increase buffer when necessary
+// [ ] BUG: increase pad size when necessary
 // [ ] FEAT?: save file before closing lim or opening another file
 // [ ] FEAT: second editor
-// [ ] FEAT: indicate saved file
 
 #include "gap_buffer.c"
 
@@ -70,6 +69,10 @@ typedef struct {
   WINDOW *linePad;     // the area for the linenumbers
   WINDOW *popupArea;   // the area for dialogs
   WINDOW *statArea;
+  u16 text_pad_h;
+  u16 text_pad_w;
+  u16 line_pad_h;
+  u16 line_pad_w;
 } Editor;
 
 void editor_init(Editor *e) {
@@ -90,7 +93,9 @@ void editor_init(Editor *e) {
   // INIT TEXT_PAD
   e->textPad = NULL;
   getmaxyx(stdscr, e->screen_h, e->screen_w);
-  e->textPad = newpad(1000, e->screen_w - 4);
+  e->text_pad_h = 1000;
+  e->text_pad_w = e->screen_w - 4;
+  e->textPad = newpad(e->text_pad_h, e->text_pad_w);
   if (!e->textPad)
     die("Could not init textPad");
   wattrset(e->textPad, COLOR_PAIR(1));
@@ -98,7 +103,9 @@ void editor_init(Editor *e) {
   
   // INIT LINE_PAD
   e->linePad = NULL;
-  e->linePad = newpad(1000, 4);
+  e->text_pad_h = e->line_pad_h;
+  e->text_pad_w = 4; // TODO
+  e->linePad = newpad(e->text_pad_h, e->text_pad_w);
   if (!e->linePad)
     die("Could not init linePad");
   
@@ -559,6 +566,15 @@ int main(int argc, char **argv) {
 
   int c = - 1;
   do {
+
+    if (c == KEY_RESIZE) {
+      getmaxyx(stdscr, e.screen_h, e.screen_w);
+      e.should_refresh = true;
+      e.refresh_bar = true;
+      goto LABEL;
+      //die ("hello there");
+    }
+
     switch (e.state) {
       case OPEN:
         handle_open_state(&e, &g, c);
@@ -567,6 +583,8 @@ int main(int argc, char **argv) {
         handle_text_state(&e, &g, c);
         break;
     }
+    
+  LABEL:
     draw_editor(&e, &g, c);  
     e.should_refresh = false;    
     e.refresh_bar = false;

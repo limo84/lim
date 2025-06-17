@@ -239,18 +239,16 @@ bool is_char_in(char c, char f, ...) {
 
 void print_c_file(Editor *e, GapBuffer *g) {
   
-  char *token = malloc(1024); // TODO
-  
-  //wattrset(e->textPad, COLOR_PAIR(5));
-  
-  //endwin();
-	
+  char *token = malloc(1024); // TODO errors, size
+
+  // TODO Better tokenizing
+  // TODO Numbers teal
+
   bool is_char = false;
   bool is_string = false;
   bool is_hashed = false;
   bool is_line_comment = false;
   
-
   for (u32 i = 0; i < g->size; i++) {
     
     char c = gb_get_char(g, i);
@@ -258,8 +256,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
     if (is_line_comment) {
       if (c == LK_NEWLINE) {
         is_line_comment = false;
-        TEXT_GREEN(e->textPad);
-        //wattrset(e->textPad, COLOR_PAIR(0));
+        TEXT_RED(e->textPad);
       }
       waddch(e->textPad, c);
       continue;
@@ -287,7 +284,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
       char d = gb_get_char(g, i + 1);
       if (d  == '/') { 
         is_line_comment = true;
-        wattrset(e->textPad, COLOR_PAIR(3));
+        TEXT_BLUE(e->textPad);
         waddch(e->textPad, c);
         waddch(e->textPad, d);
         i += 1;
@@ -309,7 +306,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
     
     if (c == '"') {
       is_string = true;
-      wattrset(e->textPad, COLOR_PAIR(1));
+      TEXT_TEAL(e->textPad);
       waddch(e->textPad, c);
       continue;
     }
@@ -324,23 +321,31 @@ void print_c_file(Editor *e, GapBuffer *g) {
     i += (j - 1);
     token[j] = 0;
     
-    // compare all
-    char *keywords[] = {"int", "char"};
+    // KEYWORDS
+    char *keywords[] = {"const", "return"};
     bool is_keyword = false;
     for (int i = 0; i < 2; i++) {
       if (strcmp(token, keywords[i]) == 0)
         is_keyword = true;
     }
+    
+    // TYPES
+    char *types[] = {"u8", "u16", "u32", "int", "char", "void", "struct"};
+    bool is_type = false;
+    for (int i = 0; i < 7; i++) {
+      if (strcmp(token, types[i]) == 0)
+        is_type = true;
+    }
 
     if (is_keyword)
-      wattrset(e->textPad, COLOR_PAIR(5));
+      TEXT_RED(e->textPad);
+    else if (is_type)
+      TEXT_GREEN(e->textPad);
     else
       wattrset(e->textPad, COLOR_PAIR(0));
 
     waddstr(e->textPad, token);
-    //printf("%s\n", token);
   }
-  //exit(0);
   free(token);
 }
 

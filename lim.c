@@ -163,6 +163,7 @@ void open_open_file(Editor *e, GapBuffer *g) {
   e->screen_line = 0;
   e->pad_pos = 0;
   e->state = TEXT;
+  e->refresh_bar = true;
   //draw_line_area(e, g);
 }
 

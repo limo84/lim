@@ -382,7 +382,7 @@ void draw_line_area(Editor *e, GapBuffer *g) {
   TEXT_YELLOW(e->linePad);
   wclear(e->linePad);
   for (int i = 0; i < g->maxlines; i++) {
-    mvwprintw(e->linePad, i - 1, 0, "%d", i);
+    mvwprintw(e->linePad, i - 1, 0, "%*d\n", 3, i); //TODO log
   }
   wrefresh(e->linePad);
 }
@@ -409,7 +409,7 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   //wprintw(e->statArea, ", prev: %d", gb_prev_line_width(g));
   wprintw(e->statArea, "\t\t\t");
   #else
-  wprintw(e->statArea, "%d", g->maxlines);
+  wprintw(e->statArea, "%*d", 3, g->maxlines);
   mvwprintw(e->statArea, 0, 10, "%s/%s", e->path, e->filename);
   if (!e->dirty)
     mvwprintw(e->statArea, 0, e->screen_w - 2, "%c", 'S');

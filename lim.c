@@ -89,25 +89,25 @@ void editor_init(Editor *e) {
   e->dirty = 0;
   e->path = get_path();
   e->state = TEXT;
+
+  // INIT LINE_PAD
+  e->linePad = NULL;
+  e->text_pad_h = 1000;
+  e->text_pad_w = 4; // TODO
+  e->linePad = newpad(e->text_pad_h, e->text_pad_w);
+  if (!e->linePad)
+    die("Could not init linePad");
   
   // INIT TEXT_PAD
   e->textPad = NULL;
   getmaxyx(stdscr, e->screen_h, e->screen_w);
-  e->text_pad_h = 1000;
-  e->text_pad_w = e->screen_w - 4;
+  e->text_pad_h = e->line_pad_h;
+  e->text_pad_w = e->screen_w - e->line_pad_w;
   e->textPad = newpad(e->text_pad_h, e->text_pad_w);
   if (!e->textPad)
     die("Could not init textPad");
   wattrset(e->textPad, COLOR_PAIR(1));
   keypad(e->textPad, TRUE);
-  
-  // INIT LINE_PAD
-  e->linePad = NULL;
-  e->text_pad_h = e->line_pad_h;
-  e->text_pad_w = 4; // TODO
-  e->linePad = newpad(e->text_pad_h, e->text_pad_w);
-  if (!e->linePad)
-    die("Could not init linePad");
   
   // INIT POPUP_AREA
   e->popupArea = NULL;
@@ -569,6 +569,8 @@ int main(int argc, char **argv) {
 
     if (c == KEY_RESIZE) {
       getmaxyx(stdscr, e.screen_h, e.screen_w);
+      e.text_pad_w = e.screen_w - e.line_pad_w;
+      wresize(e.textPad, e.text_pad_h, e.text_pad_w);
       e.should_refresh = true;
       e.refresh_bar = true;
       goto LABEL;

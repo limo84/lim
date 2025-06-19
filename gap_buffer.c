@@ -65,6 +65,8 @@ typedef struct {
   u32 point;     // relative position of cursor inside the buffer (get absolute pos with gb_pos)
   u16 line, col; // number of lines and cols the cursor is at
   u16 maxlines;  // number of maxlines of current buffer
+	u32 sel_start;
+	u32 sel_end;
 } GapBuffer;
 
 
@@ -74,6 +76,8 @@ void gb_init(GapBuffer *g, u32 init_cap) {
   g->front = 0;
   g->point = 0;
   g->maxlines = 1;
+	g->sel_start = UINT32_MAX;
+	g->sel_end = UINT32_MAX;
 }
 
 u32 gb_gap(GapBuffer *g) {

@@ -8,6 +8,7 @@
 // [X] FEAT: indicate saved file
 //
 // [x] BUG: screen resize
+// [ ] PERFORMANCE: e.g. just refresh single line in some cases, ...
 // [ ] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [ ] CORE: select text
 // [ ] CORE: copy / paste inside lim
@@ -66,8 +67,8 @@ typedef struct {
   u32 files_len;       // amount of files found in path
   bool should_refresh; // if the editor should refresh
   bool refresh_bar;
-	bool refresh_text;
-	bool refresh_line;
+  bool refresh_text;
+  bool refresh_line;
   bool dirty;
   State state;         // the state of the editor
   WINDOW *textPad;     // the area for the text
@@ -91,8 +92,8 @@ void editor_init(Editor *e) {
   e->filename = NULL;
   e->should_refresh = false;
   e->refresh_bar = true;
-	e->refresh_text = false;
-	e->refresh_line = false;
+  e->refresh_text = false;
+  e->refresh_line = false;
   e->dirty = 0;
   e->path = get_path();
   e->state = TEXT;
@@ -269,11 +270,11 @@ void print_c_file(Editor *e, GapBuffer *g) {
     
     char c = gb_get_char(g, i);
 		
-		if (i >= g->sel_start && i < g->sel_end) {
-			wattrset(e->textPad, PAIR_SELECTED);
-			waddch(e->textPad, c);
-			continue;
-		}
+    if (i >= g->sel_start && i < g->sel_end) {
+      wattrset(e->textPad, PAIR_SELECTED);
+      waddch(e->textPad, c);
+      continue;
+    }
 		
     if (is_line_comment) {
       if (c == LK_NEWLINE) {
@@ -417,7 +418,7 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   wprintw(e->statArea, ", sel_s: %d", g->sel_start);
   wprintw(e->statArea, ", sel_e: %d", g->sel_end);
 	
-	//wprintw(e->statArea, ", maxl: %d", g->maxlines);
+  //wprintw(e->statArea, ", maxl: %d", g->maxlines);
   //wprintw(e->statArea, ", wl: %d", gb_width_left(g));
   //wprintw(e->statArea, ", wr: %d", gb_width_right(g));
   //wprintw(e->statArea, ", cf: %d", e->chosen_file);
@@ -459,10 +460,10 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     print_text_area(e, g);
   }
   
-	if (e->state == SELECT) {
+  if (e->state == SELECT) {
     print_text_area(e, g);
-	}
-	//refresh();
+  }
+  //refresh();
   wmove(e->textPad, g->line, g->col);
   prefresh(e->linePad, e->pad_pos, 0, 0, 0, e->screen_h - 2, 4);
   prefresh(e->textPad, e->pad_pos, 0, 0, 4, e->screen_h - 2, e->screen_w - 1);
@@ -480,33 +481,28 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
 
 void handle_select_state(Editor *e, GapBuffer *g, int c) {
   
-	e->should_refresh = true;
+  e->should_refresh = true;
   if (c == KEY_UP || c == CTRL('i')) {
-	}
+  }
   else if (c == LK_DOWN || c == CTRL('k')) {
-	}
-	else if (c == KEY_RIGHT || c == CTRL('l')) {
-    if (g->sel_start == UINT32_MAX) {
-			g->sel_start = g->point;
-		}
-		else {
-			text_move_right(e, g);
-			g->sel_end = g->point;
-		}
-	}
+  }
+  else if (c == KEY_RIGHT || c == CTRL('l')) {
+    text_move_right(e, g);
+    g->sel_end = g->point;
+  }
   else if (c == KEY_LEFT || c == CTRL('j')) {
     if (g->sel_start == UINT32_MAX) {
-			g->sel_start = g->point;
-		}
-		else {
-			text_move_left(e, g);
-			g->sel_end = g->point;
-		}  
-	}
+      g->sel_start = g->point;
+    }
+    else {
+      text_move_left(e, g);
+      g->sel_end = g->point;
+    }  
+  }
   else if (c == CTRL('d')) {
-		e->refresh_bar = true;
-		e->state = TEXT;
-	}
+    e->refresh_bar = true;
+    e->state = TEXT;
+  }
 }
 
 void handle_open_state(Editor *e, GapBuffer *g, int c) {
@@ -582,11 +578,11 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     e->should_refresh = true;
   }
 
-	else if (c == CTRL('d')) {
-		//die("asd: %d", g->point);
+  else if (c == CTRL('d')) {
+  //die("asd: %d", g->point);
     e->state = SELECT;
-		g->sel_start = g->sel_end = g->point;
-		e->refresh_bar = true;
+    g->sel_start = g->sel_end = g->point;
+    e->refresh_bar = true;
   }
   // else if (c == 127) {
   // }
@@ -618,7 +614,7 @@ int main(int argc, char **argv) {
     e.filename = malloc(len);
     if (!e.filename)
       die("could not allocate mem");
-    strncpy(e.filename, argv[1], len + 1);
+    strncpy(e.filename, argv[1], len);
     gb_read_file(&g, e.filename);
     e.should_refresh = true;
   }
@@ -639,15 +635,15 @@ int main(int argc, char **argv) {
       case OPEN:
         handle_open_state(&e, &g, c);
         break;
-			case SELECT:
-				handle_select_state(&e, &g, c);
-				break;
+      case SELECT:
+        handle_select_state(&e, &g, c);
+        break;
       case TEXT:
         handle_text_state(&e, &g, c);
         break;
     }
     
-  	LABEL:
+    LABEL:
     draw_editor(&e, &g, c);
     e.should_refresh = false;
     e.refresh_bar = false;

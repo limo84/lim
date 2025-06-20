@@ -52,7 +52,7 @@ char *get_path() {
 
 
 typedef enum {
-  TEXT, OPEN, SELECT
+  TEXT, OPEN
 } State;
 
 typedef struct {
@@ -145,6 +145,11 @@ void ncurses_init() {
   if (!has_colors()) {
     die("No Colors\n");
   }
+
+  if (can_change_color()) {
+    // change colors
+  }
+
   init_pair(1, 1, 0); // RED
   init_pair(2, 2, 0); // GREEN
   init_pair(3, COLOR_YELLOW, 0); // YELLOW
@@ -153,7 +158,10 @@ void ncurses_init() {
   init_pair(6, 6, 0); // TEAL
   init_pair(7, 7, 0); // WHITE
   init_pair(8, COLOR_WHITE, COLOR_BLUE); // BAR 
-  init_pair(9, COLOR_BLACK, COLOR_WHITE); // SELECTED 
+  init_pair(9, COLOR_BLACK, COLOR_WHITE); // SELECTED_WHITE
+  init_pair(10, COLOR_RED, COLOR_WHITE); // SELECTED_RED
+  init_pair(11, COLOR_BLACK, COLOR_WHITE); // SELECTED_WHITE
+
   raw();
   nonl(); // for LK_ENTER|13
   noecho();
@@ -243,7 +251,6 @@ void text_enter(Editor *e, GapBuffer *g) {
     e->screen_line++;
 }
 
-
 // -------------------------------- #DRAW STUFF ------------------------------------------
 
 bool is_char_in(char c, char f, ...) {
@@ -269,11 +276,10 @@ void print_c_file(Editor *e, GapBuffer *g) {
   for (u32 i = 0; i < g->size; i++) {
     
     char c = gb_get_char(g, i);
-		
+    bool is_selected = false;
+
     if (i >= g->sel_start && i < g->sel_end) {
-      wattrset(e->textPad, PAIR_SELECTED);
-      waddch(e->textPad, c);
-      continue;
+      is_selected = true;
     }
 		
     if (is_line_comment) {
@@ -373,8 +379,14 @@ void print_c_file(Editor *e, GapBuffer *g) {
 }
 
 void print_normal(Editor *e, GapBuffer *g) {
-  TEXT_WHITE(e->textPad);
+  u32 sel_1 = MIN(g->sel_start, g->sel_end);
+  u32 sel_2 = MAX(g->sel_start, g->sel_end);
+
   for (u32 i = 0; i < g->size; i++) {
+    if (i >= sel_1 && i <= sel_2)
+      wattrset(e->textPad, COLOR_PAIR(9));
+    else
+      TEXT_WHITE(e->textPad);
     waddch(e->textPad, gb_get_char(g, i));
   }
 }
@@ -385,7 +397,7 @@ void print_text_area(Editor *e, GapBuffer *g) {
   
   u16 file_len = strlen(e->filename);
   if (strcmp(e->filename + file_len - 2, ".c") == 0 
-			|| strcmp(e->filename + file_len - 2, ".h") == 0)
+      || strcmp(e->filename + file_len - 2, ".h") == 0)
     print_c_file(e, g);
   else
     print_normal(e, g);
@@ -460,14 +472,10 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     print_text_area(e, g);
   }
   
-  if (e->state == SELECT) {
-    print_text_area(e, g);
-  }
   //refresh();
   wmove(e->textPad, g->line, g->col);
   prefresh(e->linePad, e->pad_pos, 0, 0, 0, e->screen_h - 2, 4);
   prefresh(e->textPad, e->pad_pos, 0, 0, 4, e->screen_h - 2, e->screen_w - 1);
-	
 
   if (e->state == OPEN && e->should_refresh) {
     curs_set(0);
@@ -478,32 +486,6 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
 }
 
 // ---------------- #KEY HANDLING --------------------------------
-
-void handle_select_state(Editor *e, GapBuffer *g, int c) {
-  
-  e->should_refresh = true;
-  if (c == KEY_UP || c == CTRL('i')) {
-  }
-  else if (c == LK_DOWN || c == CTRL('k')) {
-  }
-  else if (c == KEY_RIGHT || c == CTRL('l')) {
-    text_move_right(e, g);
-    g->sel_end = g->point;
-  }
-  else if (c == KEY_LEFT || c == CTRL('j')) {
-    if (g->sel_start == UINT32_MAX) {
-      g->sel_start = g->point;
-    }
-    else {
-      text_move_left(e, g);
-      g->sel_end = g->point;
-    }  
-  }
-  else if (c == CTRL('d')) {
-    e->refresh_bar = true;
-    e->state = TEXT;
-  }
-}
 
 void handle_open_state(Editor *e, GapBuffer *g, int c) {
   e->should_refresh = true;
@@ -519,23 +501,37 @@ void handle_open_state(Editor *e, GapBuffer *g, int c) {
     open_open_file(e, g);
   }
 }
+void check_selected(Editor *e, GapBuffer *g) {
+  if (g->sel_start != UINT32_MAX) {
+    g->sel_end = g->point;
+    e->should_refresh = true;
+  }
+}
 
 void handle_text_state(Editor *e, GapBuffer *g, int c) {
 
+  #if DEBUG_BAR
+  e->refresh_bar = true;
+  #endif
+  
   if (c == KEY_UP || c == CTRL('i')) {
     text_move_up(e, g);
+    check_selected(e, g);
   }
 
   else if (c == LK_DOWN || c == CTRL('k')) {
     text_move_down(e, g);
+    check_selected(e, g);
   }
 
   else if (c == KEY_RIGHT || c == CTRL('l')) {
     text_move_right(e, g);
+    check_selected(e, g);
   }
 
   else if (c == KEY_LEFT || c == CTRL('j')) {
     text_move_left(e, g);
+    check_selected(e, g);
   }
 
   else if (c == KEY_BACKSPACE || c == CTRL('u')) {
@@ -561,7 +557,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   else if (c == KEY_END) {
     gb_end(g);
   }
-    
+
   else if (c >= 32 && c <= 126) {
     gb_jump(g);
     g->buf[g->front] = c;
@@ -579,10 +575,13 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   }
 
   else if (c == CTRL('d')) {
-  //die("asd: %d", g->point);
-    e->state = SELECT;
-    g->sel_start = g->sel_end = g->point;
-    e->refresh_bar = true;
+    if (g->sel_start == UINT32_MAX) {
+      g->sel_start = g->sel_end = g->point;
+    }
+    else {
+      g->sel_start = g->sel_end = UINT32_MAX;
+      e->should_refresh = true;
+    }
   }
   // else if (c == 127) {
   // }
@@ -634,9 +633,6 @@ int main(int argc, char **argv) {
     switch (e.state) {
       case OPEN:
         handle_open_state(&e, &g, c);
-        break;
-      case SELECT:
-        handle_select_state(&e, &g, c);
         break;
       case TEXT:
         handle_text_state(&e, &g, c);

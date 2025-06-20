@@ -50,7 +50,6 @@ char *get_path() {
 
 /************************* #EDITOR ******************************/
 
-
 typedef enum {
   TEXT, OPEN
 } State;
@@ -65,6 +64,8 @@ typedef struct {
   char *filename;      // name of the file that is currently edited
   u32 chosen_file;     // selected file in open_file menu
   u32 files_len;       // amount of files found in path
+  u32 p_buffer_cap;
+  char *p_buffer;
   bool should_refresh; // if the editor should refresh
   bool refresh_bar;
   bool refresh_text;
@@ -89,6 +90,11 @@ void editor_init(Editor *e) {
   e->chosen_file = 0;
   e->files = NULL;
   e->files_len = 0;
+  e->p_buffer_cap = 512;
+  e->p_buffer = malloc(e->p_buffer_cap);
+  if (!e->p_buffer)
+    die ("cant alloc");
+  e->p_buffer[0] = 0;
   e->filename = NULL;
   e->should_refresh = false;
   e->refresh_bar = true;
@@ -251,6 +257,29 @@ void text_enter(Editor *e, GapBuffer *g) {
     e->screen_line++;
 }
 
+void text_cut(Editor *e, GapBuffer *g) {
+  
+  if (g->sel_start == UINT32_MAX)
+    return;
+
+  u32 sel_1 = MIN(g->sel_start, g->sel_end);
+  u32 sel_2 = MAX(g->sel_start, g->sel_end) + 1;
+  u32 len = sel_2 - sel_1;
+
+  g->point = sel_2;
+  gb_jump(g);
+  //g->point = sel_1;
+  // TODO check size
+  strncpy(e->p_buffer, g->buf + sel_1, len);
+  e->p_buffer[len + 1] = 0;
+  g->front = sel_1;
+  g->size -= len;
+  g->point = sel_1;
+  g->col = gb_width_left(g);
+  
+  g->sel_start = g->sel_end = UINT32_MAX;
+  e->should_refresh = true;
+}
 // -------------------------------- #DRAW STUFF ------------------------------------------
 
 bool is_char_in(char c, char f, ...) {
@@ -424,12 +453,13 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   //wprintw(e->statArea, ", front: %d", g->front);
   //wprintw(e->statArea, ", C: %d", gb_get_current(g));
   wprintw(e->statArea, ", size: %d", g->size);
-  wprintw(e->statArea, ", e.line: %d", e->screen_line);
-  wprintw(e->statArea, ", e.pad_pos: %d", e->pad_pos);
+  //wprintw(e->statArea, ", e.line: %d", e->screen_line);
+  //wprintw(e->statArea, ", e.pad_pos: %d", e->pad_pos);
   
   wprintw(e->statArea, ", sel_s: %d", g->sel_start);
   wprintw(e->statArea, ", sel_e: %d", g->sel_end);
-	
+  wprintw(e->statArea, ", p: %s", e->p_buffer);
+  
   //wprintw(e->statArea, ", maxl: %d", g->maxlines);
   //wprintw(e->statArea, ", wl: %d", gb_width_left(g));
   //wprintw(e->statArea, ", wr: %d", gb_width_right(g));
@@ -582,6 +612,10 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
       g->sel_start = g->sel_end = UINT32_MAX;
       e->should_refresh = true;
     }
+  }
+
+  else if (c == CTRL('x')) {
+    text_cut(e, g);
   }
   // else if (c == 127) {
   // }

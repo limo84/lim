@@ -140,17 +140,25 @@ u16 gb_width_right(GapBuffer *g) {
 
 // --------------- MOVE -----------------------------
 
-bool gb_move_left(GapBuffer *g) {
+u32 gb_move_left(GapBuffer *g, u32 amount) {
+  
   if (g->point == 0) {
-    return false;
+    return 0;
   }
-  g->point--;
-  g->col--;
-  if (gb_get_current(g) == LK_NEWLINE) {
-    g->line--;
-    g->col = gb_width_left(g);
+
+  if (g->point < amount) {
+    amount = g->point;
   }
-  return true;
+
+  for (int i = 0; i < amount; i++) {
+    g->point--;
+    g->col--;
+    if (gb_get_current(g) == LK_NEWLINE) {
+      g->line--;
+      g->col = gb_width_left(g);
+    }
+  }
+  return amount;
 }
 
 bool gb_move_right(GapBuffer *g) {

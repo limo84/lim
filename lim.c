@@ -217,8 +217,8 @@ void text_move_down(Editor *e, GapBuffer *g) {
   }
 }
 
-void text_move_left(Editor *e, GapBuffer *g) {
-  if (gb_move_left(g) && gb_get_current(g) == LK_NEWLINE) {
+void text_move_left(Editor *e, GapBuffer *g, u32 amount) {
+  if (gb_move_left(g, amount) && gb_get_current(g) == LK_NEWLINE) {
     if (e->screen_line <= 8 && e->pad_pos > 0)
       e->pad_pos--;
     else
@@ -272,14 +272,15 @@ void text_cut(Editor *e, GapBuffer *g) {
   // TODO check size
   strncpy(e->p_buffer, g->buf + sel_1, len);
   e->p_buffer[len + 1] = 0;
-  g->front = sel_1;
+  text_move_left(e, g, len);
+  
   g->size -= len;
-  g->point = sel_1;
-  g->col = gb_width_left(g);
+  g->front = sel_1;
   
   g->sel_start = g->sel_end = UINT32_MAX;
   e->should_refresh = true;
 }
+
 // -------------------------------- #DRAW STUFF ------------------------------------------
 
 bool is_char_in(char c, char f, ...) {
@@ -560,7 +561,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   }
 
   else if (c == KEY_LEFT || c == CTRL('j')) {
-    text_move_left(e, g);
+    text_move_left(e, g, 1);
     check_selected(e, g);
   }
 

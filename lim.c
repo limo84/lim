@@ -281,6 +281,16 @@ void text_cut(Editor *e, GapBuffer *g) {
   e->should_refresh = true;
 }
 
+void text_paste(Editor *e, GapBuffer *g) {
+  gb_jump(g);
+  u32 len = strlen(e->p_buffer);
+  strncpy(g->buf + g->point, e->p_buffer, len);
+  g->front += len;
+  g->size += len;
+
+  e->should_refresh = true;
+}
+
 // -------------------------------- #DRAW STUFF ------------------------------------------
 
 bool is_char_in(char c, char f, ...) {
@@ -617,6 +627,10 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
 
   else if (c == CTRL('x')) {
     text_cut(e, g);
+  }
+
+  else if (c == CTRL('v')) {
+    text_paste(e, g);
   }
   // else if (c == 127) {
   // }

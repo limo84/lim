@@ -226,14 +226,14 @@ void text_move_left(Editor *e, GapBuffer *g, u32 amount) {
   }
 }
 
-void text_move_right(Editor *e, GapBuffer *g) {
+void text_move_right(Editor *e, GapBuffer *g, u32 amount) {
   if (g->line < g->maxlines - 2 && gb_get_current(g) == LK_NEWLINE) {
     if (e->screen_line >= e->screen_h - 8)
       e->pad_pos++;
     else
       e->screen_line++;
   }
-  gb_move_right(g);
+  gb_move_right(g, amount);
 }
 
 // TODO delete more than one character
@@ -257,6 +257,34 @@ void text_enter(Editor *e, GapBuffer *g) {
     e->screen_line++;
 }
 
+void text_copy(Editor *e, GapBuffer *g) {
+  
+  if (g->sel_start == UINT32_MAX)
+    return;
+
+  u32 old_point = g->point;
+
+  u32 sel_left = MIN(g->sel_start, g->sel_end);
+  u32 sel_right = MAX(g->sel_start, g->sel_end) + 1;
+  //sel_right += 1;
+  u32 len = sel_right - sel_left;
+
+  //die ("left: %d, right: %d, len: %d", sel_left, sel_right, len);
+  g->point = sel_right; // to move all of the string to frontbuffer
+  gb_jump(g);
+  
+  // TODO check size
+  strncpy(e->p_buffer, g->buf + sel_left, len);
+  e->p_buffer[len + 1] = 0;
+  
+  if (g->sel_end > g->sel_start) { 
+    gb_move_right(g, 1);
+  }
+
+  g->sel_start = g->sel_end = UINT32_MAX;
+  e->should_refresh = true;
+}
+
 void text_cut(Editor *e, GapBuffer *g) {
   
   if (g->sel_start == UINT32_MAX)
@@ -272,7 +300,7 @@ void text_cut(Editor *e, GapBuffer *g) {
   // TODO check size
   strncpy(e->p_buffer, g->buf + sel_1, len);
   e->p_buffer[len + 1] = 0;
-  text_move_left(e, g, len);
+  gb_move_left(g, len - 1);
   
   g->size -= len;
   g->front = sel_1;
@@ -284,10 +312,12 @@ void text_cut(Editor *e, GapBuffer *g) {
 void text_paste(Editor *e, GapBuffer *g) {
   gb_jump(g);
   u32 len = strlen(e->p_buffer);
+  //die("len: %d", len);
   strncpy(g->buf + g->point, e->p_buffer, len);
   g->front += len;
   g->size += len;
-
+  gb_move_right(g, len);
+  system("echo -e -n \x1b[\x35 q");
   e->should_refresh = true;
 }
 
@@ -566,7 +596,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   }
 
   else if (c == KEY_RIGHT || c == CTRL('l')) {
-    text_move_right(e, g);
+    text_move_right(e, g, 1);
     check_selected(e, g);
   }
 
@@ -624,6 +654,9 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
       e->should_refresh = true;
     }
   }
+
+  else if (c == CTRL('c'))
+    text_copy(e, g);
 
   else if (c == CTRL('x')) {
     text_cut(e, g);

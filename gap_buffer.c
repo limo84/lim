@@ -25,8 +25,8 @@
 #define LK_RIGHT 67
 #define LK_LEFT 68
 
-#define MIN(a, b) (a < b) ? (a) : (b)
-#define MAX(a, b) (a > b) ? (a) : (b)
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -65,8 +65,8 @@ typedef struct {
   u32 point;     // relative position of cursor inside the buffer (get absolute pos with gb_pos)
   u16 line, col; // number of lines and cols the cursor is at
   u16 maxlines;  // number of maxlines of current buffer
-	u32 sel_start;
-	u32 sel_end;
+  u32 sel_start;
+  u32 sel_end;
 } GapBuffer;
 
 
@@ -76,8 +76,8 @@ void gb_init(GapBuffer *g, u32 init_cap) {
   g->front = 0;
   g->point = 0;
   g->maxlines = 1;
-	g->sel_start = UINT32_MAX;
-	g->sel_end = UINT32_MAX;
+  g->sel_start = UINT32_MAX;
+  g->sel_end = UINT32_MAX;
 }
 
 u32 gb_gap(GapBuffer *g) {
@@ -142,9 +142,9 @@ u16 gb_width_right(GapBuffer *g) {
 
 u32 gb_move_left(GapBuffer *g, u32 amount) {
   
-  if (g->point == 0) {
-    return 0;
-  }
+  //if (g->point == 0) {
+  //  return 0;
+  //}
 
   if (g->point < amount) {
     amount = g->point;
@@ -161,20 +161,24 @@ u32 gb_move_left(GapBuffer *g, u32 amount) {
   return amount;
 }
 
-bool gb_move_right(GapBuffer *g) {
-  if (g->point == g->size - 1) {
-    return false;
-  }
-  if (gb_get_current(g) == LK_NEWLINE) {
+u32 gb_move_right(GapBuffer *g, u32 amount) {
+  //if (g->point == g->size - 1) {
+  //  return 0;
+  //}
+  if (g->point + amount >= g->size)
+    amount = g->size - g->point;
+
+  for (int i = 0; i < amount; i++) {
+    if (gb_get_current(g) == LK_NEWLINE) {
+      g->line++;
+      g->col = 0;
+    }
+    else {
+      g->col++;
+    }
     g->point++;
-    g->line++;
-    g->col = 0;
   }
-  else {
-    g->point++;
-    g->col++;
-  }
-  return true;
+  return amount;
 }
 
 bool gb_move_down(GapBuffer *g) {

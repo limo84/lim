@@ -175,6 +175,10 @@ void ncurses_init() {
   system("echo -e -n \x1b[\x35 q");
 }
 
+u8 text_area_height(Editor *e) {
+  return e->screen_h - 1 + e->pad_pos;
+}
+
 // ---------------- #MENU FUNCTIONS -----------------------------
 
 void open_move_up(Editor *e) {
@@ -201,25 +205,55 @@ void open_open_file(Editor *e, GapBuffer *g) {
 
 // ---------------- #TEXT FUNCTIONS -----------------------------
 
+void rubberband(Editor *e, GapBuffer *g) {
+  u32 old_line = e->screen_line;
+  wmove(e->textPad, g->line, g->col);
+  u32 line = getcury(e->textPad);
+  // DOWN
+  if (old_line < line && line > text_area_height(e) - 3)
+    e->pad_pos += 1;
+  // UP
+  if (old_line > line && e->pad_pos > 0 && line < e->pad_pos + 2)
+    e->pad_pos -= 1;
+
+  e->screen_line = line;
+}
+
+void rubberband_down(Editor *e, GapBuffer *g) {
+  wmove(e->textPad, g->line, g->col);
+  e->screen_line = getcury(e->textPad);
+  if (e->screen_line > text_area_height(e) - 3)
+    e->pad_pos += 1;
+}
+
+void rubberband_up(Editor *e, GapBuffer *g) {
+  wmove(e->textPad, g->line, g->col);
+  e->screen_line = getcury(e->textPad);
+  if (e->pad_pos > 0 && e->screen_line < e->pad_pos + 2)
+    e->pad_pos -= 1;
+}
+
 void text_move_up(Editor *e, GapBuffer *g) {
   if (gb_move_up(g)) {
-    if (e->screen_line <= 8 && e->pad_pos > 0)
-      e->pad_pos--;
-    else
-      e->screen_line--;
+    //e->screen_line--;
+    rubberband(e, g);
   }
 }
 
 void text_move_down(Editor *e, GapBuffer *g) {
   if (gb_move_down(g)) {
-    if (e->screen_line >= e->screen_h - 8)
-      e->pad_pos++;
-    else
-      e->screen_line++;
+    //e->screen_line++;
+    rubberband(e, g);
   }
 }
 
 void text_move_left(Editor *e, GapBuffer *g, u32 amount) {
+  if (gb_move_left(g, amount) && gb_get_current(g) == LK_NEWLINE) {
+    rubberband(e, g);
+  }
+}
+
+void text_move_left2(Editor *e, GapBuffer *g, u32 amount) {
   if (gb_move_left(g, amount) && gb_get_current(g) == LK_NEWLINE) {
     if (e->screen_line <= 8 && e->pad_pos > 0)
       e->pad_pos--;
@@ -485,19 +519,21 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   wprintw(e->statArea, "last: %d", c);
   //wprintw(e->statArea, ", fn: %s", e->filename);
   //wprintw(e->statArea, ", ed: (%d, %d)", g->line, g->col);
-  wprintw(e->statArea, ", point: %d", g->point);
-  wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
+  //wprintw(e->statArea, ", point: %d", g->point);
+  //wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
   //wprintw(e->statArea, ", front: %d", g->front);
-  //wprintw(e->statArea, ", C: %d", gb_get_current(g));
-  wprintw(e->statArea, ", size: %d", g->size);
-  //wprintw(e->statArea, ", e.line: %d", e->screen_line);
-  //wprintw(e->statArea, ", e.pad_pos: %d", e->pad_pos);
+  wprintw(e->statArea, ", C: %d", gb_get_current(g));
+  //wprintw(e->statArea, ", size: %d", g->size);
+  wprintw(e->statArea, ", e.line: %d", e->screen_line);
+  wprintw(e->statArea, ", t.h: %d", text_area_height(e));
+  wprintw(e->statArea, ", e.pad_pos: %d", e->pad_pos);
   
-  wprintw(e->statArea, ", sel_s: %d", g->sel_start);
-  wprintw(e->statArea, ", sel_e: %d", g->sel_end);
-  wprintw(e->statArea, ", p: %s", e->p_buffer);
+  //wprintw(e->statArea, ", sel_s: %d", g->sel_start);
+  //wprintw(e->statArea, ", sel_e: %d", g->sel_end);
+  //wprintw(e->statArea, ", p: %s", e->p_buffer);
   
-  //wprintw(e->statArea, ", maxl: %d", g->maxlines);
+  wprintw(e->statArea, ", maxl: %d", g->maxlines);
+  
   //wprintw(e->statArea, ", wl: %d", gb_width_left(g));
   //wprintw(e->statArea, ", wr: %d", gb_width_right(g));
   //wprintw(e->statArea, ", cf: %d", e->chosen_file);

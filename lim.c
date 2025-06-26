@@ -171,6 +171,8 @@ void ncurses_init() {
   raw();
   nonl(); // for LK_ENTER|13
   noecho();
+  // set cursor to blinking bar
+  system("echo -e -n \x1b[\x35 q");
 }
 
 // ---------------- #MENU FUNCTIONS -----------------------------
@@ -265,8 +267,7 @@ void text_copy(Editor *e, GapBuffer *g) {
   u32 old_point = g->point;
 
   u32 sel_left = MIN(g->sel_start, g->sel_end);
-  u32 sel_right = MAX(g->sel_start, g->sel_end) + 1;
-  //sel_right += 1;
+  u32 sel_right = MAX(g->sel_start, g->sel_end);
   u32 len = sel_right - sel_left;
 
   //die ("left: %d, right: %d, len: %d", sel_left, sel_right, len);
@@ -277,10 +278,6 @@ void text_copy(Editor *e, GapBuffer *g) {
   strncpy(e->p_buffer, g->buf + sel_left, len);
   e->p_buffer[len + 1] = 0;
   
-  if (g->sel_end > g->sel_start) { 
-    gb_move_right(g, 1);
-  }
-
   g->sel_start = g->sel_end = UINT32_MAX;
   e->should_refresh = true;
 }
@@ -291,7 +288,7 @@ void text_cut(Editor *e, GapBuffer *g) {
     return;
 
   u32 sel_1 = MIN(g->sel_start, g->sel_end);
-  u32 sel_2 = MAX(g->sel_start, g->sel_end) + 1;
+  u32 sel_2 = MAX(g->sel_start, g->sel_end);
   u32 len = sel_2 - sel_1;
 
   g->point = sel_2;
@@ -300,10 +297,10 @@ void text_cut(Editor *e, GapBuffer *g) {
   // TODO check size
   strncpy(e->p_buffer, g->buf + sel_1, len);
   e->p_buffer[len + 1] = 0;
-  gb_move_left(g, len - 1);
+  gb_move_left(g, len);
   
   g->size -= len;
-  g->front = sel_1;
+  //g->front = g->point;
   
   g->sel_start = g->sel_end = UINT32_MAX;
   e->should_refresh = true;
@@ -317,7 +314,6 @@ void text_paste(Editor *e, GapBuffer *g) {
   g->front += len;
   g->size += len;
   gb_move_right(g, len);
-  system("echo -e -n \x1b[\x35 q");
   e->should_refresh = true;
 }
 
@@ -453,7 +449,7 @@ void print_normal(Editor *e, GapBuffer *g) {
   u32 sel_2 = MAX(g->sel_start, g->sel_end);
 
   for (u32 i = 0; i < g->size; i++) {
-    if (i >= sel_1 && i <= sel_2)
+    if (i >= sel_1 && i < sel_2)
       wattrset(e->textPad, COLOR_PAIR(9));
     else
       TEXT_WHITE(e->textPad);
@@ -572,6 +568,7 @@ void handle_open_state(Editor *e, GapBuffer *g, int c) {
     open_open_file(e, g);
   }
 }
+
 void check_selected(Editor *e, GapBuffer *g) {
   if (g->sel_start != UINT32_MAX) {
     g->sel_end = g->point;

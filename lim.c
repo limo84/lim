@@ -275,7 +275,7 @@ void text_move_right(Editor *e, GapBuffer *g, u32 amount) {
 // TODO delete more than one character
 void text_backspace(Editor *e, GapBuffer *g) {
   u32 maxlines = g->maxlines;
-  e->should_refresh = gb_backspace(g);
+  e->should_refresh = gb_backspace(g, 1);
   if (maxlines > g->maxlines) {
     if (e->screen_line <= 8 && e->pad_pos > 0)
       e->pad_pos--;
@@ -307,37 +307,25 @@ void text_copy(Editor *e, GapBuffer *g) {
   //die ("left: %d, right: %d, len: %d", sel_left, sel_right, len);
   g->point = sel_right; // to move all of the string to frontbuffer
   gb_jump(g);
-  
+ 
   // TODO check size
   strncpy(e->p_buffer, g->buf + sel_left, len);
   e->p_buffer[len + 1] = 0;
-  
+ 
   g->sel_start = g->sel_end = UINT32_MAX;
   e->should_refresh = true;
 }
 
 void text_cut(Editor *e, GapBuffer *g) {
-  
+ 
   if (g->sel_start == UINT32_MAX)
     return;
 
-  u32 sel_1 = MIN(g->sel_start, g->sel_end);
-  u32 sel_2 = MAX(g->sel_start, g->sel_end);
-  u32 len = sel_2 - sel_1;
-
-  g->point = sel_2;
-  gb_jump(g);
-  //g->point = sel_1;
-  // TODO check size
-  strncpy(e->p_buffer, g->buf + sel_1, len);
-  e->p_buffer[len + 1] = 0;
-  gb_move_left(g, len);
-  
-  g->size -= len;
-  //g->front = g->point;
-  
-  g->sel_start = g->sel_end = UINT32_MAX;
-  e->should_refresh = true;
+  i32 len = g->sel_start - g->sel_end;
+  text_copy(e, g);
+ 
+  if (len > 0)
+    gb_backspace(g, len);
 }
 
 void text_paste(Editor *e, GapBuffer *g) {

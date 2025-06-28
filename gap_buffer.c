@@ -234,25 +234,28 @@ void gb_enter(GapBuffer *g) {
   g->maxlines++;
 }
 
-bool gb_backspace(GapBuffer *g) {
+bool gb_backspace(GapBuffer *g, u32 amount) {
   
   if (g->point == 0) {
     return false;
   }
 
-  gb_jump(g);
-  if (g->col > 0) {
-    g->col--;
-    g->point--;
-  } 
-  else {
-    g->line--;
-    g->maxlines--;
-    g->point--;
-    g->col = gb_width_left(g);
+  gb_jump(g); // correct, here?
+  
+  for (int i = 0; i < amount; i++) { 
+    if (g->col > 0) {
+      g->col--;
+      g->point--;
+    } 
+    else {
+      g->line--;
+      g->maxlines--;
+      g->point--;
+      g->col = gb_width_left(g);
+    }
+    g->size--;
+    g->front--;
   }
-  g->size--;
-  g->front--;
   return true;
 }
 

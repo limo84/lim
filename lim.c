@@ -10,8 +10,9 @@
 // [x] BUG: screen resize
 // [ ] PERFORMANCE: e.g. just refresh single line in some cases, ...
 // [ ] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
-// [ ] CORE: select text
+// [X] CORE: select text
 // [ ] CORE: copy / paste inside lim
+// [ ] CORE: use libtermkey or anyting better for keys
 // [ ] BUG: bug when line_width is bigger than screen_w
 // [ ] BUG: increase buffer when necessary
 // [x] BUG: increase pad size when necessary
@@ -122,7 +123,7 @@ void editor_init(Editor *e) {
     die("Could not init textPad");
   wattrset(e->textPad, COLOR_PAIR(1));
   keypad(e->textPad, TRUE);
-  
+ 
   // INIT POPUP_AREA
   e->popupArea = NULL;
   u16 height = 40;
@@ -233,6 +234,10 @@ void rubberband_up(Editor *e, GapBuffer *g) {
     e->pad_pos -= 1;
 }
 
+void clear_selection(GapBuffer *g) {
+  g->sel_start = g->sel_end = UINT32_MAX;
+}
+
 void text_move_up(Editor *e, GapBuffer *g) {
   if (gb_move_up(g)) {
     //e->screen_line--;
@@ -272,18 +277,6 @@ void text_move_right(Editor *e, GapBuffer *g, u32 amount) {
   gb_move_right(g, amount);
 }
 
-// TODO delete more than one character
-void text_backspace(Editor *e, GapBuffer *g) {
-  u32 maxlines = g->maxlines;
-  e->should_refresh = gb_backspace(g, 1);
-  if (maxlines > g->maxlines) {
-    if (e->screen_line <= 8 && e->pad_pos > 0)
-      e->pad_pos--;
-    else
-      e->screen_line--;
-  }
-}
-
 void text_enter(Editor *e, GapBuffer *g) {
   gb_enter(g);
   e->should_refresh = true;
@@ -293,26 +286,34 @@ void text_enter(Editor *e, GapBuffer *g) {
     e->screen_line++;
 }
 
+void text_backspace(Editor *e, GapBuffer *g) {
+  u32 maxlines = g->maxlines;
+  i32 amount = 1;
+
+  if (g->sel_start != UINT32_MAX) {
+    amount = g->sel_end - g->sel_start;
+    amount = ABS(amount);  
+
+    if (g->sel_end < g->sel_start)
+      gb_move_right(g, amount);
+
+    e->should_refresh = true;
+    clear_selection(g);
+  }
+
+  e->should_refresh = gb_backspace(g, amount);
+  //rubberband(e, g);
+}
+
 void text_copy(Editor *e, GapBuffer *g) {
   
   if (g->sel_start == UINT32_MAX)
     return;
-
-  u32 old_point = g->point;
-
-  u32 sel_left = MIN(g->sel_start, g->sel_end);
-  u32 sel_right = MAX(g->sel_start, g->sel_end);
-  u32 len = sel_right - sel_left;
-
-  //die ("left: %d, right: %d, len: %d", sel_left, sel_right, len);
-  g->point = sel_right; // to move all of the string to frontbuffer
-  gb_jump(g);
- 
-  // TODO check size
-  strncpy(e->p_buffer, g->buf + sel_left, len);
-  e->p_buffer[len + 1] = 0;
- 
-  g->sel_start = g->sel_end = UINT32_MAX;
+  
+  // TODO MAKE SURE THAT P_BUFFER IS BIG ENOUGH!!
+  gb_copy(g, e->p_buffer);
+  
+  clear_selection(g);
   e->should_refresh = true;
 }
 
@@ -321,11 +322,12 @@ void text_cut(Editor *e, GapBuffer *g) {
   if (g->sel_start == UINT32_MAX)
     return;
 
-  i32 len = g->sel_start - g->sel_end;
-  text_copy(e, g);
- 
-  if (len > 0)
-    gb_backspace(g, len);
+  // TODO MAKE SURE THAT P_BUFFER IS BIG ENOUGH!!
+  gb_copy(g, e->p_buffer);
+  gb_backspace(g, 0);
+
+  clear_selection(g);
+  e->should_refresh = true;
 }
 
 void text_paste(Editor *e, GapBuffer *g) {
@@ -507,7 +509,7 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   wprintw(e->statArea, "last: %d", c);
   //wprintw(e->statArea, ", fn: %s", e->filename);
   //wprintw(e->statArea, ", ed: (%d, %d)", g->line, g->col);
-  //wprintw(e->statArea, ", point: %d", g->point);
+  wprintw(e->statArea, ", point: %d", g->point);
   //wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
   //wprintw(e->statArea, ", front: %d", g->front);
   wprintw(e->statArea, ", C: %d", gb_get_current(g));

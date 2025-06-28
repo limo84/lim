@@ -27,6 +27,7 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define ABS(a) ((a) < 0 ? (-a) : (a))
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -234,14 +235,22 @@ void gb_enter(GapBuffer *g) {
   g->maxlines++;
 }
 
-bool gb_backspace(GapBuffer *g, u32 amount) {
-  
-  if (g->point == 0) {
-    return false;
-  }
+bool gb_has_selection(GapBuffer *g) {
+  return g->sel_start != UINT32_MAX; 
+}
 
+u32 gb_backspace(GapBuffer *g, u32 amount) {
+ 
+  amount = MIN(amount, g->point);
+
+  if (gb_has_selection(g)) {
+    u32 sel_left = MIN(g->sel_start, g->sel_end);
+    u32 sel_right = MAX(g->sel_start, g->sel_end);
+    amount = sel_right - sel_left;
+    g->point = sel_right;
+  }
   gb_jump(g); // correct, here?
-  
+
   for (int i = 0; i < amount; i++) { 
     if (g->col > 0) {
       g->col--;
@@ -256,7 +265,7 @@ bool gb_backspace(GapBuffer *g, u32 amount) {
     g->size--;
     g->front--;
   }
-  return true;
+  return amount;
 }
 
 void gb_home(GapBuffer *g) {
@@ -268,6 +277,23 @@ void gb_end(GapBuffer *g) {
   u16 width_right = gb_width_right(g);
   g->col += width_right;
   g->point += width_right;
+}
+
+// TODO check cap before !!!
+void gb_copy(GapBuffer *g, char* p_buffer) {
+  u32 sel_left = MIN(g->sel_start, g->sel_end);
+  u32 sel_right = MAX(g->sel_start, g->sel_end);
+  u32 len = sel_right - sel_left;
+
+  g->point = sel_right; // to move all of the string to frontbuffer
+  gb_jump(g);
+ 
+  strncpy(p_buffer, g->buf + sel_left, len);
+  p_buffer[len + 1] = 0;
+}
+
+void gb_cut(GapBuffer *g, char* p_buffer) {
+  gb_copy(g, p_buffer);
 }
 
 // TODO

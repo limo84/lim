@@ -20,7 +20,7 @@
 #define MY_ASSERT(c, s, p) if (!(c)) { printf(s, p); exit(1); } 
 
 
-#define CTRL(c) ((c) & 037)
+//#define CTRL(c) ((c) & 037)
 #define STR_Q 17
 #define LK_NEWLINE 10
 #define LK_ENTER 13
@@ -82,6 +82,16 @@ keymap_entry german_keymap[] = {
 };
 
 #define KEYMAP_SIZE (sizeof(german_keymap)/sizeof(german_keymap[0]))
+
+
+u8 map_keycode(int keycode) {
+  for (u8 i = 0; i < KEYMAP_SIZE; i++) {
+    if (german_keymap[i].keycode == keycode) {
+      return german_keymap[i].normal;
+    }
+  }
+  return 0;
+}
 
 // ********************* #MISC *********************************/
 

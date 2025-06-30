@@ -21,8 +21,25 @@
 // [ ] FEAT: Chapters
 
 #include "gap_buffer.c"
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <string.h>
+#include <linux/input.h>
+#include <errno.h>
+#include <string.h>
+#include <stdint.h>
+
+
 
 #define LK_TICK 39
+
+
+
+
+
 /************************ #MISC ******************************/
 
 #define TEXT_RED(w) wattrset(w, COLOR_PAIR(1)) 
@@ -172,6 +189,8 @@ void ncurses_init() {
   raw();
   nonl(); // for LK_ENTER|13
   noecho();
+  keypad(stdscr, false);
+
   // set cursor to blinking bar
   system("echo \x1b[\x35 q");
 }
@@ -179,6 +198,83 @@ void ncurses_init() {
 u8 text_area_height(Editor *e) {
   return e->screen_h - 1 + e->pad_pos;
 }
+
+
+
+/********************* #KEYBOARD *****************************/
+
+#define INPUT_DIR "/dev/input/"
+#define EVENT_PREFIX "event"
+#define MAX_DEVICES 32
+
+#define LK_ESC 27
+#define LK_TAB '\t'
+#define LK_BS 33
+
+
+int is_keyboard(int fd) {
+  unsigned long evbit = 0;
+  ioctl(fd, EVIOCGBIT(0, sizeof(evbit)), &evbit);
+  return evbit & (1 << EV_KEY);
+}
+
+int get_all_events(Editor *e) {
+  struct dirent *de;
+  DIR *dir = opendir(INPUT_DIR);
+  if (!dir) {
+    perror("opendir");
+    return 1;
+  }
+
+  int fds[MAX_DEVICES];
+  int nfds = 0;
+
+  // Open all keyboard devices
+  while ((de = readdir(dir)) && nfds < MAX_DEVICES) {
+    if (strncmp(de->d_name, EVENT_PREFIX, strlen(EVENT_PREFIX)) == 0) {
+      char path[256];
+      snprintf(path, sizeof(path), "%s%s", INPUT_DIR, de->d_name);
+      int fd = open(path, O_RDONLY | O_NONBLOCK);
+      if (fd >= 0 && is_keyboard(fd)) {
+        printf("Opened %s\n", path);
+        fds[nfds++] = fd;
+      } else {
+        close(fd);
+      }
+    }
+  }
+  closedir(dir);
+
+  // Read events
+  while (1) {
+    for (int i = 0; i < nfds; i++) {
+      struct input_event ev;
+      ssize_t n = read(fds[i], &ev, sizeof(ev));
+      if (n == sizeof(ev)) {
+        if (ev.type == EV_KEY) {
+          if (ev.value == 1) {
+            // QUIT
+            if (ev.code == 1)
+              return 0;
+            
+            u8 c = map_keycode(ev.code);
+            if (c) {
+              mvwprintw(e->textPad);
+          }
+          // ev.value: 0=release 1=press 2=repeat
+        }
+      }
+    }
+    usleep(1000); // avoid busy loop
+  }
+
+  // Cleanup
+  for (int i = 0; i < nfds; i++)
+    close(fds[i]);
+
+  return 0;
+}
+
 
 // ---------------- #MENU FUNCTIONS -----------------------------
 
@@ -723,6 +819,9 @@ int main(int argc, char **argv) {
     e.should_refresh = true;
   }
 
+  get_all_events();
+  goto END;
+    
   int c = - 1;
   do {
 
@@ -750,7 +849,9 @@ int main(int argc, char **argv) {
     e.refresh_bar = false;
     c = wgetch(e.textPad);
   } while (c != CTRL('q'));
-  
+ 
+
+END:
   clear();
   endwin();
   return 0;

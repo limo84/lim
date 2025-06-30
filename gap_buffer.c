@@ -10,6 +10,10 @@
 #include <ncurses.h>
 #endif
 
+#include <linux/input.h>
+#include <linux/input-event-codes.h>
+
+
 #include "files.h"
 
 #define ASSERT(c) assert(c)
@@ -38,6 +42,46 @@ typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
+
+
+// ***************** #KEYBOARD *********************************/
+typedef struct {
+  int keycode;
+  u8 normal;
+  u8 shifted;
+  u8 altgr;
+} keymap_entry;
+
+keymap_entry german_keymap[] = {
+  { KEY_Q, 'q', 'Q', 0 },
+  { KEY_W, 'w', 'W', 0 },
+  { KEY_E, 'e', 'E', 0 },
+  { KEY_Y, 'y', 'Y', 0 },
+  { KEY_Z, 'z', 'Z', 0 },
+  { KEY_A, 'a', 'A', 0 },
+  { KEY_S, 's', 'S', 0 },
+  { KEY_D, 'd', 'D', 0 },
+  { KEY_F, 'f', 'F', 0 },
+  { KEY_G, 'g', 'G', 0 },
+  { KEY_H, 'h', 'H', 0 },
+  { KEY_J, 'j', 'J', 0 },
+  { KEY_K, 'k', 'K', 0 },
+  { KEY_L, 'l', 'L', 0 },
+  { KEY_M, 'm', 'M', 0 },
+  { KEY_1, '1', '!', 0 },
+  { KEY_2, '2', 0, 0 },
+  { KEY_3, '3', 0, 0 },
+  { KEY_4, '4', '$', 0 },
+  { KEY_5, '5', '%', 0 },
+  { KEY_6, '6', '&', 0 },
+  { KEY_7, '7', '/', '{' },
+  { KEY_8, '8', '(', '[' },
+  { KEY_9, '9', ')', ']' },
+  { KEY_0, '0', '=', '}' },
+  { KEY_SPACE, ' ', ' ', ' ' },
+};
+
+#define KEYMAP_SIZE (sizeof(german_keymap)/sizeof(german_keymap[0]))
 
 // ********************* #MISC *********************************/
 

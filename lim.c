@@ -173,7 +173,7 @@ void ncurses_init() {
   nonl(); // for LK_ENTER|13
   noecho();
   // set cursor to blinking bar
-  system("echo -e -n \x1b[\x35 q");
+  system("echo \x1b[\x35 q");
 }
 
 u8 text_area_height(Editor *e) {

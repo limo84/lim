@@ -31,13 +31,9 @@
 #include <errno.h>
 #include <string.h>
 #include <stdint.h>
-
-
-
-#define LK_TICK 39
-
-
-
+#include <unistd.h>
+#include <termios.h>
+#include <signal.h>
 
 
 /************************ #MISC ******************************/
@@ -65,6 +61,60 @@ char *get_path() {
   strcpy(path, buffer);
   return path;
 }
+
+typedef struct termios Termios;
+static Termios orig_termios;
+
+void restore_terminal(void) {
+  tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
+}
+
+void cleanup(void) {
+  endwin();
+  restore_terminal();
+}
+
+void signal_handler(int sig) {
+  endwin();
+  fprintf(stderr, "\n[INFO] Signal %d caught. Exiting.\n", sig);
+  signal(sig, SIG_DFL);
+  raise(sig);
+}
+
+void setup_signals(void) {
+  int signals[] = { SIGINT, SIGTERM, SIGSEGV, SIGABRT, SIGHUP };
+  for (size_t i = 0; i < sizeof(signals)/sizeof(signals[0]); i++) {
+    signal(signals[i], signal_handler);
+  }
+}
+
+// REMOVE
+void disable_terminal_echo(void) {
+  static u8 already_disabled = 0;
+  if (already_disabled)
+    die("disabled twice");
+  already_disabled = 1;
+
+  Termios t;
+  if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) {
+    die("tcgetattr");
+  }
+
+  atexit(cleanup);
+  // Register restoration on SIGINT
+  setup_signals();
+
+  t = orig_termios;
+  t.c_lflag &= ~(ICANON | ECHO);   // Disable canonical mode and echo
+  t.c_cc[VMIN] = 1;                // Read at least 1 character
+  t.c_cc[VTIME] = 0;               // No timeout
+  
+  if (tcsetattr(STDIN_FILENO, TCSANOW, &t) == -1) {
+    die("tcsetattr");
+  }
+}
+
+
 
 /************************* #EDITOR ******************************/
 
@@ -187,7 +237,7 @@ void ncurses_init() {
   init_pair(11, COLOR_BLACK, COLOR_WHITE); // SELECTED_WHITE
 
   raw();
-  //nonl(); // for LK_ENTER|13
+  nonl(); // for LK_ENTER|13
   noecho();
   keypad(stdscr, false);
 
@@ -209,6 +259,7 @@ u8 text_area_height(Editor *e) {
 
 typedef enum {
   LK_QUIT = 0,
+  LK_ENTER = 10,
   LK_LEFT = 256,
   LK_RIGHT,
   LK_UP,
@@ -265,10 +316,12 @@ keymap_entry german_keymap[] = {
   { KEY_SPACE, ' ', ' ', ' ' },
   
   { KEY_ESC, LK_QUIT, LK_QUIT, 0 },
-  { KEY_RIGHT, LK_RIGHT, LK_RIGHT, 0},
-  { KEY_LEFT, LK_LEFT, LK_LEFT, 0},
-  { KEY_UP, LK_UP, LK_UP, 0},
-  { KEY_DOWN, LK_DOWN, LK_DOWN, 0},
+  { KEY_ENTER, LK_ENTER, LK_ENTER, 0 },
+  
+  { KEY_RIGHT, LK_RIGHT, LK_RIGHT, 0 },
+  { KEY_LEFT, LK_LEFT, LK_LEFT, 0 },
+  { KEY_UP, LK_UP, LK_UP, 0 },
+  { KEY_DOWN, LK_DOWN, LK_DOWN, 0 },
 };
 
 #define KEYMAP_SIZE (sizeof(german_keymap)/sizeof(german_keymap[0]))
@@ -558,7 +611,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
 
     if (is_char) {
       waddch(e->textPad, c);
-      if (c == LK_TICK) {
+      if (c == '\'') {
         is_char = false;
         wattrset(e->textPad, COLOR_PAIR(0));
       }
@@ -591,7 +644,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
       continue;
     }
 
-    if (c == LK_TICK) {
+    if (c == '\'') {
       is_char = true;
       wattrset(e->textPad, COLOR_PAIR(3));
       waddch(e->textPad, c);
@@ -788,17 +841,17 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     check_selected(e, g);
   }
 
-  else if (c == LK_DOWN || c == CTRL('k')) {
+  else if (c == LK_DOWN) {
     text_move_down(e, g);
     check_selected(e, g);
   }
 
-  else if (c == LK_RIGHT || c == CTRL('l')) {
+  else if (c == LK_RIGHT) {
     text_move_right(e, g, 1);
     check_selected(e, g);
   }
 
-  else if (c == LK_LEFT || c == CTRL('j')) {
+  else if (c == LK_LEFT) {
     text_move_left(e, g, 1);
     check_selected(e, g);
   }
@@ -814,7 +867,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     e->should_refresh = true;
   }
  
-  else if (c == CTRL('o') || c == LK_NEWLINE) {
+  else if (c == LK_ENTER) {
     text_enter(e, g);
     e->dirty = true;
   }
@@ -932,10 +985,7 @@ int main(int argc, char **argv) {
     c = get_all_events(&in);
     //c = wgetch(e.textPad);
   }
- 
 
-END:
-  clear();
-  endwin();
+  //restore_terminal();
   return 0;
 }

@@ -219,6 +219,7 @@ int is_keyboard(int fd) {
 }
 
 int get_all_events(Editor *e) {
+  
   struct dirent *de;
   DIR *dir = opendir(INPUT_DIR);
   if (!dir) {
@@ -254,20 +255,21 @@ int get_all_events(Editor *e) {
         if (ev.type == EV_KEY) {
           if (ev.value == 1) {
             // QUIT
+            die("huhu");
             if (ev.code == 1)
               return 0;
             
             u8 c = map_keycode(ev.code);
-            if (c) {
-              mvwprintw(e->textPad);
-          }
+            if (c) 
+              mvwaddch(e->textPad, 0, 0, c);
+          
           // ev.value: 0=release 1=press 2=repeat
+          }
         }
       }
+      usleep(1000); // avoid busy loop
     }
-    usleep(1000); // avoid busy loop
   }
-
   // Cleanup
   for (int i = 0; i < nfds; i++)
     close(fds[i]);
@@ -819,7 +821,7 @@ int main(int argc, char **argv) {
     e.should_refresh = true;
   }
 
-  get_all_events();
+  get_all_events(&e);
   goto END;
     
   int c = - 1;

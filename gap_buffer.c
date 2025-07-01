@@ -13,21 +13,12 @@
 #include <linux/input.h>
 #include <linux/input-event-codes.h>
 
-
 #include "files.h"
+
+#define LK_NEWLINE 10
 
 #define ASSERT(c) assert(c)
 #define MY_ASSERT(c, s, p) if (!(c)) { printf(s, p); exit(1); } 
-
-
-//#define CTRL(c) ((c) & 037)
-#define STR_Q 17
-#define LK_NEWLINE 10
-#define LK_ENTER 13
-#define LK_UP 65
-#define LK_DOWN 258
-#define LK_RIGHT 67
-#define LK_LEFT 68
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -45,53 +36,7 @@ typedef int64_t i64;
 
 
 // ***************** #KEYBOARD *********************************/
-typedef struct {
-  int keycode;
-  u8 normal;
-  u8 shifted;
-  u8 altgr;
-} keymap_entry;
 
-keymap_entry german_keymap[] = {
-  { KEY_Q, 'q', 'Q', 0 },
-  { KEY_W, 'w', 'W', 0 },
-  { KEY_E, 'e', 'E', 0 },
-  { KEY_Y, 'y', 'Y', 0 },
-  { KEY_Z, 'z', 'Z', 0 },
-  { KEY_A, 'a', 'A', 0 },
-  { KEY_S, 's', 'S', 0 },
-  { KEY_D, 'd', 'D', 0 },
-  { KEY_F, 'f', 'F', 0 },
-  { KEY_G, 'g', 'G', 0 },
-  { KEY_H, 'h', 'H', 0 },
-  { KEY_J, 'j', 'J', 0 },
-  { KEY_K, 'k', 'K', 0 },
-  { KEY_L, 'l', 'L', 0 },
-  { KEY_M, 'm', 'M', 0 },
-  { KEY_1, '1', '!', 0 },
-  { KEY_2, '2', 0, 0 },
-  { KEY_3, '3', 0, 0 },
-  { KEY_4, '4', '$', 0 },
-  { KEY_5, '5', '%', 0 },
-  { KEY_6, '6', '&', 0 },
-  { KEY_7, '7', '/', '{' },
-  { KEY_8, '8', '(', '[' },
-  { KEY_9, '9', ')', ']' },
-  { KEY_0, '0', '=', '}' },
-  { KEY_SPACE, ' ', ' ', ' ' },
-};
-
-#define KEYMAP_SIZE (sizeof(german_keymap)/sizeof(german_keymap[0]))
-
-
-u8 map_keycode(int keycode) {
-  for (u8 i = 0; i < KEYMAP_SIZE; i++) {
-    if (german_keymap[i].keycode == keycode) {
-      return german_keymap[i].normal;
-    }
-  }
-  return 0;
-}
 
 // ********************* #MISC *********************************/
 

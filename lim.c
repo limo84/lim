@@ -97,7 +97,7 @@ typedef struct {
   u16 text_pad_h;
   u16 text_pad_w;
   u16 line_pad_h;
-  u16 line_pad_w;
+  u16 line_pad_w; 
 } Editor;
 
 void editor_init(Editor *e) {
@@ -187,7 +187,7 @@ void ncurses_init() {
   init_pair(11, COLOR_BLACK, COLOR_WHITE); // SELECTED_WHITE
 
   raw();
-  nonl(); // for LK_ENTER|13
+  //nonl(); // for LK_ENTER|13
   noecho();
   keypad(stdscr, false);
 
@@ -207,10 +207,88 @@ u8 text_area_height(Editor *e) {
 #define EVENT_PREFIX "event"
 #define MAX_DEVICES 32
 
-#define LK_ESC 27
-#define LK_TAB '\t'
-#define LK_BS 33
+typedef enum {
+  LK_QUIT = 0,
+  LK_LEFT = 256,
+  LK_RIGHT,
+  LK_UP,
+  LK_DOWN,
+} LK_KEYS;
 
+typedef struct {
+  int keycode;
+  u16 normal;
+  u16 shifted;
+  u16 altgr;
+} keymap_entry;
+
+keymap_entry german_keymap[] = {
+  { KEY_Q, 'q', 'Q', 0 },
+  { KEY_W, 'w', 'W', 0 },
+  { KEY_E, 'e', 'E', 0 },
+  { KEY_R, 'r', 'R', 0 },
+  { KEY_T, 't', 'T', 0 },
+  { KEY_Y, 'z', 'Z', 0 },
+  { KEY_U, 'u', 'U', 0 },
+  { KEY_I, 'i', 'I', 0 },
+  { KEY_O, 'o', 'O', 0 },
+  { KEY_P, 'p', 'P', 0 },
+  
+  { KEY_A, 'a', 'A', 0 },
+  { KEY_S, 's', 'S', 0 },
+  { KEY_D, 'd', 'D', 0 },
+  { KEY_F, 'f', 'F', 0 },
+  { KEY_G, 'g', 'G', 0 },
+  { KEY_H, 'h', 'H', 0 },
+  { KEY_J, 'j', 'J', 0 },
+  { KEY_K, 'k', 'K', 0 },
+  { KEY_L, 'l', 'L', 0 },
+
+  { KEY_Z, 'y', 'Y', 0 },
+  { KEY_X, 'x', 'X', 0 },
+  { KEY_C, 'c', 'C', 0 },
+  { KEY_V, 'v', 'V', 0 },
+  { KEY_B, 'b', 'B', 0 },
+  { KEY_N, 'n', 'N', 0 },
+  { KEY_M, 'm', 'M', 0 },
+  
+  { KEY_1, '1', '!', 0 },
+  { KEY_2, '2', 0, 0 },
+  { KEY_3, '3', 0, 0 },
+  { KEY_4, '4', '$', 0 },
+  { KEY_5, '5', '%', 0 },
+  { KEY_6, '6', '&', 0 },
+  { KEY_7, '7', '/', '{' },
+  { KEY_8, '8', '(', '[' },
+  { KEY_9, '9', ')', ']' },
+  { KEY_0, '0', '=', '}' },
+  { KEY_SPACE, ' ', ' ', ' ' },
+  
+  { KEY_ESC, LK_QUIT, LK_QUIT, 0 },
+  { KEY_RIGHT, LK_RIGHT, LK_RIGHT, 0},
+  { KEY_LEFT, LK_LEFT, LK_LEFT, 0},
+  { KEY_UP, LK_UP, LK_UP, 0},
+  { KEY_DOWN, LK_DOWN, LK_DOWN, 0},
+};
+
+#define KEYMAP_SIZE (sizeof(german_keymap)/sizeof(german_keymap[0]))
+
+
+u16 map_keycode(int keycode) {
+  for (u8 i = 0; i < KEYMAP_SIZE; i++) {
+    //if (keycode == KEY_RIGHT)
+      //die("KEY_RIGHT %d", KEY_RIGHT);
+    if (german_keymap[i].keycode == keycode) {
+      return german_keymap[i].normal;
+    }
+  }
+  return 0;
+}
+
+typedef struct {
+  int keyboards[MAX_DEVICES];
+  int keyboards_n;
+} Input;
 
 int is_keyboard(int fd) {
   unsigned long evbit = 0;
@@ -218,51 +296,50 @@ int is_keyboard(int fd) {
   return evbit & (1 << EV_KEY);
 }
 
-int get_all_events(Editor *e) {
+void init_keyboards(Input *in) {
   
+  in->keyboards_n = 0;
+
   struct dirent *de;
   DIR *dir = opendir(INPUT_DIR);
   if (!dir) {
-    perror("opendir");
-    return 1;
+    die("opendir");
   }
 
-  int fds[MAX_DEVICES];
-  int nfds = 0;
-
   // Open all keyboard devices
-  while ((de = readdir(dir)) && nfds < MAX_DEVICES) {
+  while ((de = readdir(dir)) && in->keyboards_n < MAX_DEVICES) {
     if (strncmp(de->d_name, EVENT_PREFIX, strlen(EVENT_PREFIX)) == 0) {
       char path[256];
       snprintf(path, sizeof(path), "%s%s", INPUT_DIR, de->d_name);
       int fd = open(path, O_RDONLY | O_NONBLOCK);
       if (fd >= 0 && is_keyboard(fd)) {
         printf("Opened %s\n", path);
-        fds[nfds++] = fd;
+        in->keyboards[in->keyboards_n++] = fd;
       } else {
         close(fd);
       }
     }
   }
   closedir(dir);
+}
 
-  // Read events
+u16 get_all_events(Input *input) {
+  
+    // Read events
   while (1) {
-    for (int i = 0; i < nfds; i++) {
+    for (int i = 0; i < input->keyboards_n; i++) {
       struct input_event ev;
-      ssize_t n = read(fds[i], &ev, sizeof(ev));
+      ssize_t n = read(input->keyboards[i], &ev, sizeof(ev));
       if (n == sizeof(ev)) {
         if (ev.type == EV_KEY) {
           if (ev.value == 1) {
             // QUIT
-            die("huhu");
             if (ev.code == 1)
-              return 0;
+              return LK_QUIT;
             
-            u8 c = map_keycode(ev.code);
+            u16 c = map_keycode(ev.code);
             if (c) 
-              mvwaddch(e->textPad, 0, 0, c);
-          
+              return c;
           // ev.value: 0=release 1=press 2=repeat
           }
         }
@@ -270,13 +347,13 @@ int get_all_events(Editor *e) {
       usleep(1000); // avoid busy loop
     }
   }
-  // Cleanup
-  for (int i = 0; i < nfds; i++)
-    close(fds[i]);
-
   return 0;
 }
 
+/*void input_cleanup(Input in) {
+  for (int i = 0; i < nfds; i++)
+    close(fds[i]);
+}*/
 
 // ---------------- #MENU FUNCTIONS -----------------------------
 
@@ -686,7 +763,7 @@ void handle_open_state(Editor *e, GapBuffer *g, int c) {
     open_move_down(e);
   else if (c == CTRL('r'))
     e->state = TEXT;
-  else if (c == CTRL('o') || c == LK_ENTER) {
+  else if (c == CTRL('o') || c == LK_NEWLINE) {
     // Save before loading a different file
     // gb_write_to_file(g, e->filename);
     open_open_file(e, g);
@@ -706,7 +783,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   e->refresh_bar = true;
   #endif
   
-  if (c == KEY_UP || c == CTRL('i')) {
+  if (c == LK_UP) {
     text_move_up(e, g);
     check_selected(e, g);
   }
@@ -716,12 +793,12 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     check_selected(e, g);
   }
 
-  else if (c == KEY_RIGHT || c == CTRL('l')) {
+  else if (c == LK_RIGHT || c == CTRL('l')) {
     text_move_right(e, g, 1);
     check_selected(e, g);
   }
 
-  else if (c == KEY_LEFT || c == CTRL('j')) {
+  else if (c == LK_LEFT || c == CTRL('j')) {
     text_move_left(e, g, 1);
     check_selected(e, g);
   }
@@ -737,18 +814,18 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     e->should_refresh = true;
   }
  
-  else if (c == CTRL('o') || c == LK_ENTER) {
+  else if (c == CTRL('o') || c == LK_NEWLINE) {
     text_enter(e, g);
     e->dirty = true;
   }
   
-  else if (c == KEY_HOME) {
+  /*else if (c == KEY_HOME) {
     gb_home(g);
   }
 
   else if (c == KEY_END) {
     gb_end(g);
-  }
+  }*/
 
   else if (c >= 32 && c <= 126) {
     gb_jump(g);
@@ -805,6 +882,9 @@ int main(int argc, char **argv) {
   Editor e;
   editor_init(&e);
 
+  Input in;
+  init_keyboards(&in);
+
   GapBuffer g;
   gb_init(&g, INIT_CAP);
   g.buf = calloc(g.cap, sizeof(char));
@@ -821,20 +901,20 @@ int main(int argc, char **argv) {
     e.should_refresh = true;
   }
 
-  get_all_events(&e);
-  goto END;
+  bool should_close = false;
     
-  int c = - 1;
-  do {
-
-    if (c == KEY_RESIZE) {
+  u16 c = UINT16_MAX;
+  while (c != LK_QUIT) {
+    
+    
+    /* if (c == KEY_RESIZE) {
       getmaxyx(stdscr, e.screen_h, e.screen_w);
       e.text_pad_w = e.screen_w - e.line_pad_w;
       wresize(e.textPad, e.text_pad_h, e.text_pad_w);
       e.should_refresh = true;
       e.refresh_bar = true;
       goto LABEL;
-    }
+    }*/
 
     switch (e.state) {
       case OPEN:
@@ -849,8 +929,9 @@ int main(int argc, char **argv) {
     draw_editor(&e, &g, c);
     e.should_refresh = false;
     e.refresh_bar = false;
-    c = wgetch(e.textPad);
-  } while (c != CTRL('q'));
+    c = get_all_events(&in);
+    //c = wgetch(e.textPad);
+  }
  
 
 END:

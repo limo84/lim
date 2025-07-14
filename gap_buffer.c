@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <signal.h>
 
 #if 1 // for later implementation of editors without ncurses
 #include <ncurses.h>
@@ -54,9 +55,23 @@ void __die(const char* file, int line, const char *format, ...) {
   exit(0);
 }
 
+void signal_handler(int sig) {
+  endwin();
+  fprintf(stderr, "\n\033[91m[%s: %d] Signal %d caught. Exiting.\n\n\033[39m",
+      __FILE__, __LINE__, sig);
+  signal(sig, SIG_DFL);
+  raise(sig);
+}
+
+void setup_signals(void) {
+  int signals[] = { SIGINT, SIGTERM, SIGSEGV, SIGABRT, SIGHUP };
+  for (size_t i = 0; i < sizeof(signals)/sizeof(signals[0]); i++) {
+    signal(signals[i], signal_handler);
+  }
+}
 /******************** #GAPBUFFER *******************************/
 
-#define INIT_CAP 100000
+#define INIT_CAP 100
 
 typedef struct {
   char *buf;
@@ -85,6 +100,14 @@ u32 gb_gap(GapBuffer *g) {
   return g->cap - g->size;
 }
 
+u32 gb_back_start(GapBuffer *g) {
+  return g->front + gb_gap(g);
+}
+
+u32 gb_back_len(GapBuffer *g) {
+  return g->size - gb_back_start(g);
+}
+
 u32 gb_pos(GapBuffer *g, u32 point) {
   return point + (point >= g->front) * gb_gap(g);
 }
@@ -94,7 +117,35 @@ char gb_get_char(GapBuffer *g, u32 point) {
 }
 
 char gb_get_current(GapBuffer *g) {
-  return gb_get_char(g, g->point);;
+  return gb_get_char(g, g->point);
+}
+
+void gb_check_increase(GapBuffer *g, u32 amount) {
+  
+  if (g->size + amount < g->cap)
+    return;
+
+  u32 point = g->point;
+  u32 old_cap = g->cap;
+
+  while (g->size + amount >= g->cap) {
+    //increase += INIT_CAP;
+    g->cap += INIT_CAP;
+  }
+  
+  char *tmp = realloc(g->buf, g->cap);
+  if (!tmp)
+    die("Not enough RAM?");
+  
+  if (g->front == 0)
+    return;
+
+  // move backbuffer 'increase' lines to end
+  g->buf = tmp;
+  memmove(g->buf + g->front + g->cap - g->size, g->buf + g->front + old_cap - g->size, 
+      old_cap - g->size + g->front);
+
+  int debug = 1;
 }
 
 void gb_count_maxlines(GapBuffer *g) {
@@ -333,7 +384,11 @@ int gb_read_file(GapBuffer *g, char* filename) {
   g->size = ftell(file);
   fseek(file, 0, SEEK_SET);
 
-  fread(g->buf + g->cap - g->size, g->size, 1, file);
+  gb_check_increase(g, 0);
+  //fread(g->buf + g->cap - g->size, g->size, 1, file);
+  fread(g->buf, sizeof(char), g->size, file);
+  g->front = g->size;
+  g->buf[g->size + 1] = 0;
   gb_count_maxlines(g);
   fclose(file);
   return 0;

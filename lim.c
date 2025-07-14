@@ -6,16 +6,21 @@
 // [X] BUG: save in correct file
 // [X] BUG: start of file -> enter left left right|down
 // [X] FEAT: indicate saved file
-//
-// [ ] BUG: screen resize; refresh bar
-// [ ] BUG: bug when line_width is bigger than screen_w
+
 // [ ] BUG: increase buffer when necessary
 // [ ] BUG: increase pad size when necessary
+// [ ] BUG: bug when line_width is bigger than screen_w
+// [ ] BUG: screen resize; refresh bar
+// [ ] BUG: call endwin() on signals
 // [X] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [X] CORE: select text
 // [ ] CORE: copy / paste inside lim
 // [ ] CORE: keep offset when moving up/down
+
 // [N] FEAT?: save file before closing lim or opening another file
+// [ ] FEAT: fuzzy find in open dialog
+// [ ] FEAT: find in file(s)
+// [ ] FEAT: undo
 // [ ] FEAT: second editor
 // [ ] FEAT: use libtermkey or anyting better for keys (resize ?)
 // [ ] FEAT: Chapters
@@ -24,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
+#include <signal.h>
 
 #include "gap_buffer.c"
 
@@ -184,6 +190,8 @@ void ncurses_init() {
   raw();
   nonl(); // for LK_ENTER|13
   noecho();
+
+  setup_signals();
   // set cursor to blinking bar
   system("echo -e -n \x1b[\x35 q");
 }
@@ -509,7 +517,7 @@ void draw_line_area(Editor *e, GapBuffer *g) {
   TEXT_YELLOW(e->linePad);
   wclear(e->linePad);
   for (int i = 0; i < g->maxlines; i++) {
-    mvwprintw(e->linePad, i - 1, 0, "%*d\n", 3, i); //TODO log(maxlines)
+    mvwprintw(e->linePad, i - 1, 0, "%*d\n", 3, i); //TODO loga(maxlines)
   }
   wrefresh(e->linePad);
 }
@@ -522,19 +530,22 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   //wprintw(e->statArea, ", fn: %s", e->filename);
   //wprintw(e->statArea, ", ed: (%d, %d)", g->line, g->col);
   wprintw(e->statArea, ", point: %d", g->point);
-  //wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
-  //wprintw(e->statArea, ", front: %d", g->front);
+  wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
+  
+  wprintw(e->statArea, ", front: %d", g->front);
   wprintw(e->statArea, ", C: %d", gb_get_current(g));
-  //wprintw(e->statArea, ", size: %d", g->size);
-  wprintw(e->statArea, ", e.line: %d", e->screen_line);
-  wprintw(e->statArea, ", t.h: %d", text_area_height(e));
-  wprintw(e->statArea, ", e.pad_pos: %d", e->pad_pos);
+  wprintw(e->statArea, ", size: %d", g->size);
+  wprintw(e->statArea, ", cap: %d", g->cap);
+  
+  //wprintw(e->statArea, ", e.line: %d", e->screen_line);
+  //wprintw(e->statArea, ", t.h: %d", text_area_height(e));
+  //wprintw(e->statArea, ", e.pad_pos: %d", e->pad_pos);
   
   //wprintw(e->statArea, ", sel_s: %d", g->sel_start);
   //wprintw(e->statArea, ", sel_e: %d", g->sel_end);
   //wprintw(e->statArea, ", p: %s", e->p_buffer);
   
-  wprintw(e->statArea, ", maxl: %d", g->maxlines);
+  //wprintw(e->statArea, ", maxl: %d", g->maxlines);
   
   //wprintw(e->statArea, ", wl: %d", gb_width_left(g));
   //wprintw(e->statArea, ", wr: %d", gb_width_right(g));
@@ -545,8 +556,8 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   #else
   wprintw(e->statArea, "%*d", 3, g->maxlines);
   mvwprintw(e->statArea, 0, 10, "%s/%s", e->path, e->filename);
-  if (!e->dirty)
-    mvwprintw(e->statArea, 0, e->screen_w - 2, "%c", 'S');
+  if (e->dirty)
+    mvwprintw(e->statArea, 0, e->screen_w - 2, "%c", 'M');
   #endif
   wrefresh(e->statArea);
 }
@@ -665,6 +676,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   }
 
   else if (c >= 32 && c <= 126) {
+    gb_check_increase(g, 100);
     gb_jump(g);
     g->buf[g->front] = c;
     g->size++;
@@ -736,7 +748,7 @@ int main(int argc, char **argv) {
     e.state = OPEN;
   }
 
-  int c = - 1;
+  int c = -1;
   do {
 
     if (c == KEY_RESIZE) {
@@ -755,7 +767,9 @@ int main(int argc, char **argv) {
         handle_text_state(&e, &g, c);
         break;
     }
-    
+    if (c == -1) {
+      //gb_check_increase(&g, 100);
+    }
     draw_editor(&e, &g, c);
     e.should_refresh = false;
     e.refresh_bar = false;

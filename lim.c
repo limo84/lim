@@ -1,4 +1,4 @@
-/ TODO
+// TODO
 // [X] show different bar in debug mode
 // [X] indicate dirty file in bar
 // [X] disable autosave

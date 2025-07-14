@@ -1,4 +1,4 @@
-// TODO
+/ TODO
 // [X] show different bar in debug mode
 // [X] indicate dirty file in bar
 // [X] disable autosave
@@ -7,18 +7,23 @@
 // [X] BUG: start of file -> enter left left right|down
 // [X] FEAT: indicate saved file
 //
-// [x] BUG: screen resize
-// [ ] PERFORMANCE: e.g. just refresh single line in some cases, ...
-// [ ] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
-// [X] CORE: select text
-// [ ] CORE: copy / paste inside lim
-// [ ] CORE: use libtermkey or anyting better for keys
+// [ ] BUG: screen resize; refresh bar
 // [ ] BUG: bug when line_width is bigger than screen_w
 // [ ] BUG: increase buffer when necessary
-// [x] BUG: increase pad size when necessary
+// [ ] BUG: increase pad size when necessary
+// [X] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
+// [X] CORE: select text
+// [ ] CORE: copy / paste inside lim
+// [ ] CORE: keep offset when moving up/down
 // [N] FEAT?: save file before closing lim or opening another file
 // [ ] FEAT: second editor
+// [ ] FEAT: use libtermkey or anyting better for keys (resize ?)
 // [ ] FEAT: Chapters
+// [ ] PERFORMANCE: e.g. just refresh single line in some cases, ...
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/unistd.h>
 
 #include "gap_buffer.c"
 
@@ -47,6 +52,13 @@ char *get_path() {
   char *path = malloc(cwd_len);
   strcpy(path, buffer);
   return path;
+}
+
+bool is_directory(char *path) {
+  struct stat statbuf;
+  if (stat(path, &statbuf) != 0)
+    die("stat dieded: %s", path);
+  return S_ISDIR(statbuf.st_mode);
 }
 
 /************************* #EDITOR ******************************/
@@ -497,7 +509,7 @@ void draw_line_area(Editor *e, GapBuffer *g) {
   TEXT_YELLOW(e->linePad);
   wclear(e->linePad);
   for (int i = 0; i < g->maxlines; i++) {
-    mvwprintw(e->linePad, i - 1, 0, "%*d\n", 3, i); //TODO log
+    mvwprintw(e->linePad, i - 1, 0, "%*d\n", 3, i); //TODO log(maxlines)
   }
   wrefresh(e->linePad);
 }
@@ -697,12 +709,6 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
 int main(int argc, char **argv) {
 
   ncurses_init();
-
-  // TODO maybe for refreshing in TTY
-  // struct timeval tp;
-  // u16 millis = 1000;
-  // u16 old_millis = 1000;
-  // u16 delta = 1000;
   
   Editor e;
   editor_init(&e);
@@ -715,12 +721,19 @@ int main(int argc, char **argv) {
   
   if (argc > 1) {
     int len = MIN(strlen(argv[1]), 100);
-    e.filename = malloc(len);
+    e.filename = calloc(len, 1);
     if (!e.filename)
       die("could not allocate mem");
     strncpy(e.filename, argv[1], len);
-    gb_read_file(&g, e.filename);
-    e.should_refresh = true;
+    // check if directory
+    if (is_directory(e.filename)) {
+      e.state = OPEN;
+    } else {
+      gb_read_file(&g, e.filename);
+      e.should_refresh = true;
+    }
+  } else {
+    e.state = OPEN;
   }
 
   int c = - 1;
@@ -732,7 +745,6 @@ int main(int argc, char **argv) {
       wresize(e.textPad, e.text_pad_h, e.text_pad_w);
       e.should_refresh = true;
       e.refresh_bar = true;
-      goto LABEL;
     }
 
     switch (e.state) {
@@ -744,7 +756,6 @@ int main(int argc, char **argv) {
         break;
     }
     
-    LABEL:
     draw_editor(&e, &g, c);
     e.should_refresh = false;
     e.refresh_bar = false;

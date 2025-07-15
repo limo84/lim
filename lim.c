@@ -7,11 +7,11 @@
 // [X] BUG: start of file -> enter left left right|down
 // [X] FEAT: indicate saved file
 
-// [ ] BUG: increase buffer when necessary
+// [X] BUG: increase buffer when necessary
 // [ ] BUG: increase pad size when necessary
 // [ ] BUG: bug when line_width is bigger than screen_w
 // [ ] BUG: screen resize; refresh bar
-// [ ] BUG: call endwin() on signals
+// [X] BUG: call endwin() on signals
 // [X] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [X] CORE: select text
 // [ ] CORE: copy / paste inside lim
@@ -676,12 +676,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   }
 
   else if (c >= 32 && c <= 126) {
-    gb_check_increase(g, 100);
-    gb_jump(g);
-    g->buf[g->front] = c;
-    g->size++;
-    g->front++;
-    g->point++;
+    gb_insert_char(g, c);
     g->col += 1;
     e->should_refresh = true;
     e->dirty = true;

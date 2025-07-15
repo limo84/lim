@@ -271,6 +271,7 @@ bool gb_move_up(GapBuffer *g) {
 // TODO refactor from here
 
 void gb_insert_char(GapBuffer *g, u8 c) {
+  gb_check_increase(g, 1);
   gb_jump(g);
   g->buf[g->front] = c;
   g->size++;

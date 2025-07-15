@@ -71,7 +71,7 @@ void setup_signals(void) {
 }
 /******************** #GAPBUFFER *******************************/
 
-#define INIT_CAP 100
+#define INIT_CAP 1000
 
 typedef struct {
   char *buf;
@@ -125,25 +125,24 @@ void gb_check_increase(GapBuffer *g, u32 amount) {
   if (g->size + amount < g->cap)
     return;
 
-  u32 point = g->point;
-  u32 old_cap = g->cap;
+  u32 old_back = gb_back_start(g);
+  u32 old_back_len = g->cap - old_back;
 
   while (g->size + amount >= g->cap) {
-    //increase += INIT_CAP;
     g->cap += INIT_CAP;
   }
-  
+
   char *tmp = realloc(g->buf, g->cap);
   if (!tmp)
     die("Not enough RAM?");
   
-  if (g->front == 0)
+  g->buf = tmp;
+  
+  if (g->size == 0)
     return;
 
-  // move backbuffer 'increase' lines to end
-  g->buf = tmp;
-  memmove(g->buf + g->front + g->cap - g->size, g->buf + g->front + old_cap - g->size, 
-      old_cap - g->size + g->front);
+  // move backbuffer to end
+  memmove(g->buf + gb_back_start(g), g->buf + old_back, old_back_len);
 
   int debug = 1;
 }
@@ -381,13 +380,13 @@ int gb_read_file(GapBuffer *g, char* filename) {
   if (fseek(file, 0, SEEK_END) != 0)
     die("fseek SEEK_END");
  
-  g->size = ftell(file);
+  u32 size = ftell(file);
   fseek(file, 0, SEEK_SET);
 
-  gb_check_increase(g, 0);
-  //fread(g->buf + g->cap - g->size, g->size, 1, file);
-  fread(g->buf, sizeof(char), g->size, file);
-  g->front = g->size;
+  gb_check_increase(g, size);
+  fread(g->buf, sizeof(char), size, file);
+  g->size = size;
+  g->front = size;
   g->buf[g->size + 1] = 0;
   gb_count_maxlines(g);
   fclose(file);

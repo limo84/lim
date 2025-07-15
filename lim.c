@@ -737,7 +737,7 @@ int main(int argc, char **argv) {
     if (!e.filename)
       die("could not allocate mem");
     strncpy(e.filename, argv[1], len);
-    // check if directory
+    
     if (is_directory(e.filename)) {
       e.state = OPEN;
     } else {
@@ -767,9 +767,7 @@ int main(int argc, char **argv) {
         handle_text_state(&e, &g, c);
         break;
     }
-    if (c == -1) {
-      //gb_check_increase(&g, 100);
-    }
+
     draw_editor(&e, &g, c);
     e.should_refresh = false;
     e.refresh_bar = false;

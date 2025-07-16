@@ -1,29 +1,27 @@
 // TODO
-// [X] show different bar in debug mode
-// [X] indicate dirty file in bar
-// [X] disable autosave
-// [X] improve bar
-// [X] BUG: save in correct file
-// [X] BUG: start of file -> enter left left right|down
-// [X] FEAT: indicate saved file
+
+// X = DONE, C = CONFIGURABLE
 
 // [X] BUG: increase buffer when necessary
-// [ ] BUG: increase pad size when necessary
-// [ ] BUG: bug when line_width is bigger than screen_w
-// [ ] BUG: screen resize; refresh bar
 // [X] BUG: call endwin() on signals
+// [ ] BUG: increase pad size when necessary
+// [ ] BUG: bug when line_width is bigger than screen_w <- scroll pad on x axis
+// [ ] BUG: screen resize; refresh bar
+
 // [X] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [X] CORE: select text
 // [ ] CORE: copy / paste inside lim
 // [ ] CORE: keep offset when moving up/down
+// [ ] CORE: indentation key
 
-// [N] FEAT?: save file before closing lim or opening another file
+// [C] FEAT: save file before closing lim or opening another file
 // [ ] FEAT: fuzzy find in open dialog
 // [ ] FEAT: find in file(s)
 // [ ] FEAT: undo
 // [ ] FEAT: second editor
 // [ ] FEAT: use libtermkey or anyting better for keys (resize ?)
 // [ ] FEAT: Chapters
+
 // [ ] PERFORMANCE: e.g. just refresh single line in some cases, ...
 
 #include <sys/types.h>
@@ -76,8 +74,11 @@ typedef enum {
 typedef struct {
   u16 screen_h;        // height of window in rows
   u16 screen_w;        // width of window in cols
-  u8 screen_line;      // line of the point on the screen
-  u32 pad_pos;         // offset from top of pad to top of screen
+  u32 pad_pos_y;       // offset from top of pad to top of screen 
+  u32 pad_pos_x;       // ---- "" --- left to left of screen 
+  u16 text_pad_w;      // total width of textpad
+  u16 line_pad_w;      // total width of linepad
+  u32 pad_h;           // total height of pads
   char *path;          // basepath of the current Project
   char **files;        // files below basepath
   char *filename;      // name of the file that is currently edited
@@ -95,17 +96,13 @@ typedef struct {
   WINDOW *linePad;     // the area for the linenumbers
   WINDOW *popupArea;   // the area for dialogs
   WINDOW *statArea;
-  u16 text_pad_h;
-  u16 text_pad_w;
-  u16 line_pad_h;
-  u16 line_pad_w;
 } Editor;
 
 void editor_init(Editor *e) {
   e->screen_h = 0;
   e->screen_w = 0;
-  e->screen_line = 0;
-  e->pad_pos = 0;
+  e->pad_pos_y = 0;
+  e->pad_pos_x = 0;
   e->chosen_file = 0;
   e->files = NULL;
   e->files_len = 0;
@@ -122,21 +119,20 @@ void editor_init(Editor *e) {
   e->dirty = 0;
   e->path = get_path();
   e->state = TEXT;
+  getmaxyx(stdscr, e->screen_h, e->screen_w);
 
   // INIT LINE_PAD
   e->linePad = NULL;
-  e->line_pad_h = 1000;
+  e->pad_h = 100;
   e->line_pad_w = 4; // TODO
-  e->linePad = newpad(e->line_pad_h, e->line_pad_w);
+  e->linePad = newpad(e->pad_h, e->line_pad_w);
   if (!e->linePad)
     die("Could not init linePad");
   
   // INIT TEXT_PAD
   e->textPad = NULL;
-  getmaxyx(stdscr, e->screen_h, e->screen_w);
-  e->text_pad_h = e->line_pad_h;
-  e->text_pad_w = e->screen_w - e->line_pad_w;
-  e->textPad = newpad(e->text_pad_h, e->text_pad_w);
+  e->text_pad_w = 500;
+  e->textPad = newpad(e->pad_h, e->text_pad_w);
   if (!e->textPad)
     die("Could not init textPad");
   wattrset(e->textPad, COLOR_PAIR(1));
@@ -182,7 +178,7 @@ void ncurses_init() {
   init_pair(5, 5, 0); // PINK
   init_pair(6, 6, 0); // TEAL
   init_pair(7, 7, 0); // WHITE
-  init_pair(8, COLOR_WHITE, COLOR_BLUE); // BAR 
+  init_pair(8, COLOR_WHITE, COLOR_BLUE); // BAR
   init_pair(9, COLOR_BLACK, COLOR_WHITE); // SELECTED_WHITE
   init_pair(10, COLOR_RED, COLOR_WHITE); // SELECTED_RED
   init_pair(11, COLOR_BLACK, COLOR_WHITE); // SELECTED_WHITE
@@ -196,8 +192,13 @@ void ncurses_init() {
   system("echo -e -n \x1b[\x35 q");
 }
 
-u8 text_area_height(Editor *e) {
-  return e->screen_h - 1 + e->pad_pos;
+u16 text_area_height(Editor *e) {
+  // WHOLE SCREEN MINUS BAR
+  return e->screen_h - 1;
+}
+
+u16 text_area_width(Editor *e) {
+  return e->screen_w - e->line_pad_w;
 }
 
 // ---------------- #MENU FUNCTIONS -----------------------------
@@ -217,8 +218,8 @@ void open_open_file(Editor *e, GapBuffer *g) {
   e->filename = malloc(len + 1);
   strcpy(e->filename, e->files[e->chosen_file]);
   gb_read_file(g, e->filename);
-  e->screen_line = 0;
-  e->pad_pos = 0;
+  g->line = 0;
+  e->pad_pos_y = 0;
   e->state = TEXT;
   e->refresh_bar = true;
   //draw_line_area(e, g);
@@ -226,32 +227,33 @@ void open_open_file(Editor *e, GapBuffer *g) {
 
 // ---------------- #TEXT FUNCTIONS -----------------------------
 
-void rubberband(Editor *e, GapBuffer *g) {
-  u32 old_line = e->screen_line;
-  wmove(e->textPad, g->line, g->col);
-  u32 line = getcury(e->textPad);
+void update_cursor(Editor *e, GapBuffer *g) {
+
+  u16 text_area_h = text_area_height(e);
+  u16 text_area_w = text_area_width(e);
+  i32 diff = 0;
+
   // DOWN
-  if (old_line < line && line > text_area_height(e) - 3)
-    e->pad_pos += 1;
+  if (g->line > e->pad_pos_y + text_area_h - 3)
+    e->pad_pos_y = g->line - text_area_h + 3;
+  
   // UP
-  if (old_line > line && e->pad_pos > 0 && line < e->pad_pos + 2)
-    e->pad_pos -= 1;
+  else if (g->line < e->pad_pos_y + 2) {
+    diff = g->line - 2;
+    e->pad_pos_y = MAX(diff, 0);
+  }
+  
+  // RIGHT X
+  if (g->col > e->pad_pos_x + text_area_w - 5)
+    e->pad_pos_x = g->col - text_area_w + 5;
+  
+  // LEFT
+  else if (g->col < e->pad_pos_x + 5) {
+    diff = g->col - 5;
+    e->pad_pos_x = MAX(0, diff);
+  }
 
-  e->screen_line = line;
-}
-
-void rubberband_down(Editor *e, GapBuffer *g) {
   wmove(e->textPad, g->line, g->col);
-  e->screen_line = getcury(e->textPad);
-  if (e->screen_line > text_area_height(e) - 3)
-    e->pad_pos += 1;
-}
-
-void rubberband_up(Editor *e, GapBuffer *g) {
-  wmove(e->textPad, g->line, g->col);
-  e->screen_line = getcury(e->textPad);
-  if (e->pad_pos > 0 && e->screen_line < e->pad_pos + 2)
-    e->pad_pos -= 1;
 }
 
 void clear_selection(GapBuffer *g) {
@@ -260,50 +262,30 @@ void clear_selection(GapBuffer *g) {
 
 void text_move_up(Editor *e, GapBuffer *g) {
   if (gb_move_up(g)) {
-    //e->screen_line--;
-    rubberband(e, g);
   }
 }
 
 void text_move_down(Editor *e, GapBuffer *g) {
   if (gb_move_down(g)) {
-    //e->screen_line++;
-    rubberband(e, g);
   }
 }
 
 void text_move_left(Editor *e, GapBuffer *g, u32 amount) {
-  if (gb_move_left(g, amount) && gb_get_current(g) == LK_NEWLINE) {
-    rubberband(e, g);
-  }
-}
-
-void text_move_left2(Editor *e, GapBuffer *g, u32 amount) {
-  if (gb_move_left(g, amount) && gb_get_current(g) == LK_NEWLINE) {
-    if (e->screen_line <= 8 && e->pad_pos > 0)
-      e->pad_pos--;
-    else
-      e->screen_line--;
-  }
+  gb_move_left(g, 1);
 }
 
 void text_move_right(Editor *e, GapBuffer *g, u32 amount) {
-  if (g->line < g->maxlines - 2 && gb_get_current(g) == LK_NEWLINE) {
-    if (e->screen_line >= e->screen_h - 8)
-      e->pad_pos++;
-    else
-      e->screen_line++;
-  }
-  gb_move_right(g, amount);
+  gb_move_right(g, 1);
 }
 
 void text_enter(Editor *e, GapBuffer *g) {
   gb_enter(g);
   e->should_refresh = true;
-  if (e->screen_line >= e->screen_h - 8)
-    e->pad_pos++;
+  /*if (e->screen_line >= e->screen_h - 8)
+    e->pad_pos_y++;
   else
     e->screen_line++;
+  */
 }
 
 void text_backspace(Editor *e, GapBuffer *g) {
@@ -312,7 +294,7 @@ void text_backspace(Editor *e, GapBuffer *g) {
 
   if (g->sel_start != UINT32_MAX) {
     amount = g->sel_end - g->sel_start;
-    amount = ABS(amount);  
+    amount = ABS(amount);
 
     if (g->sel_end < g->sel_start)
       gb_move_right(g, amount);
@@ -322,7 +304,6 @@ void text_backspace(Editor *e, GapBuffer *g) {
   }
 
   e->should_refresh = gb_backspace(g, amount);
-  //rubberband(e, g);
 }
 
 void text_copy(Editor *e, GapBuffer *g) {
@@ -391,7 +372,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
     if (i >= g->sel_start && i < g->sel_end) {
       is_selected = true;
     }
-		
+
     if (is_line_comment) {
       if (c == LK_NEWLINE) {
         is_line_comment = false;
@@ -506,17 +487,17 @@ void print_text_area(Editor *e, GapBuffer *g) {
   wclear(e->textPad);
   
   u16 file_len = strlen(e->filename);
-  if (strcmp(e->filename + file_len - 2, ".c") == 0 
+  /*if (strcmp(e->filename + file_len - 2, ".c") == 0 
       || strcmp(e->filename + file_len - 2, ".h") == 0)
     print_c_file(e, g);
-  else
-    print_normal(e, g);
+  else */
+  print_normal(e, g);
 }
 
 void draw_line_area(Editor *e, GapBuffer *g) {
   TEXT_YELLOW(e->linePad);
   wclear(e->linePad);
-  for (int i = 0; i < g->maxlines; i++) {
+  for (int i = 0; i <= g->maxlines; i++) {
     mvwprintw(e->linePad, i - 1, 0, "%*d\n", 3, i); //TODO loga(maxlines)
   }
   wrefresh(e->linePad);
@@ -529,18 +510,24 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   wprintw(e->statArea, "last: %d", c);
   //wprintw(e->statArea, ", fn: %s", e->filename);
   //wprintw(e->statArea, ", ed: (%d, %d)", g->line, g->col);
-  wprintw(e->statArea, ", point: %d", g->point);
-  wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
+  //wprintw(e->statArea, ", point: %d", g->point);
+  //wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
   
-  wprintw(e->statArea, ", front: %d", g->front);
-  wprintw(e->statArea, ", C: %d", gb_get_current(g));
-  wprintw(e->statArea, ", size: %d", g->size);
-  wprintw(e->statArea, ", cap: %d", g->cap);
+  //wprintw(e->statArea, ", front: %d", g->front);
+  //wprintw(e->statArea, ", C: %d", gb_get_current(g));
+  //wprintw(e->statArea, ", size: %d", g->size);
+  //wprintw(e->statArea, ", cap: %d", g->cap);
   
-  //wprintw(e->statArea, ", e.line: %d", e->screen_line);
-  //wprintw(e->statArea, ", t.h: %d", text_area_height(e));
-  //wprintw(e->statArea, ", e.pad_pos: %d", e->pad_pos);
+  // TEXT_PAD_Y
+  wprintw(e->statArea, ", line: %d", g->line /* + pad_pos_y ? */);
+  wprintw(e->statArea, ", t.h: %d", text_area_height(e));
+  wprintw(e->statArea, ", e.pad_pos_y: %d", e->pad_pos_y);
   
+  // TEXT_PAD_X
+  //wprintw(e->statArea, ", e.pad_pos_x: %d", e->pad_pos_x);
+  //wprintw(e->statArea, ", col: %d", g->col);
+  //wprintw(e->statArea, ", TA_width: %d", text_area_width(e));
+
   //wprintw(e->statArea, ", sel_s: %d", g->sel_start);
   //wprintw(e->statArea, ", sel_e: %d", g->sel_end);
   //wprintw(e->statArea, ", p: %s", e->p_buffer);
@@ -556,9 +543,9 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   #else
   wprintw(e->statArea, "%*d", 3, g->maxlines);
   mvwprintw(e->statArea, 0, 10, "%s/%s", e->path, e->filename);
+  #endif
   if (e->dirty)
     mvwprintw(e->statArea, 0, e->screen_w - 2, "%c", 'M');
-  #endif
   wrefresh(e->statArea);
 }
 
@@ -579,19 +566,25 @@ void print_files(Editor *e) {
 }
 
 void draw_editor(Editor *e, GapBuffer *g, int c) {
+  
   curs_set(1);
-  if (e->refresh_bar)
-    print_status_line(g, e, c);
+    
 
   if (e->state == TEXT && e->should_refresh) {
     draw_line_area(e, g); // maybe separate bool for this ?
     print_text_area(e, g);
   }
   
-  //refresh();
-  wmove(e->textPad, g->line, g->col);
-  prefresh(e->linePad, e->pad_pos, 0, 0, 0, e->screen_h - 2, 4);
-  prefresh(e->textPad, e->pad_pos, 0, 0, 4, e->screen_h - 2, e->screen_w - 1);
+  update_cursor(e, g);
+
+  if (e->refresh_bar) {
+    print_status_line(g, e, c);
+    // MOVE CURSOR OUT OF STATUS_BAR
+    wmove(e->textPad, g->line, g->col);
+ }
+  
+  prefresh(e->linePad, e->pad_pos_y, 0, 0, 0, e->screen_h - 2, 4);
+  prefresh(e->textPad, e->pad_pos_y, e->pad_pos_x, 0, 4, e->screen_h - 2, e->screen_w - 1);
 
   if (e->state == OPEN && e->should_refresh) {
     curs_set(0);
@@ -599,6 +592,9 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     print_files(e);
     wrefresh(e->popupArea);
   }
+
+  
+  
 }
 
 // ---------------- #KEY HANDLING --------------------------------
@@ -748,8 +744,8 @@ int main(int argc, char **argv) {
 
     if (c == KEY_RESIZE) {
       getmaxyx(stdscr, e.screen_h, e.screen_w);
-      e.text_pad_w = e.screen_w - e.line_pad_w;
-      wresize(e.textPad, e.text_pad_h, e.text_pad_w);
+      //e.text_pad_w = e.screen_w - e.line_pad_w;
+      wresize(e.textPad, e.pad_h, e.text_pad_w);
       e.should_refresh = true;
       e.refresh_bar = true;
     }
@@ -769,7 +765,7 @@ int main(int argc, char **argv) {
     c = wgetch(e.textPad);
   } while (c != CTRL('q'));
   
-  clear();
-  endwin();
+  //clear();
+  //endwin();
   return 0;
 }

@@ -4,9 +4,10 @@
 
 // [X] BUG: increase buffer when necessary
 // [X] BUG: call endwin() on signals
+// [X] BUG: bug when line_width is bigger than screen_w <- scroll pad on x axis
 // [ ] BUG: increase pad size when necessary
-// [ ] BUG: bug when line_width is bigger than screen_w <- scroll pad on x axis
 // [ ] BUG: screen resize; refresh bar
+// [ ] BUG: increasing font size does not trigger KEY_RESIZE (?)
 
 // [X] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [X] CORE: select text
@@ -197,6 +198,11 @@ u16 text_area_height(Editor *e) {
   return e->screen_h - 1;
 }
 
+//TODO loga(maxlines)
+u16 line_area_width(Editor *e, GapBuffer *g) {
+  return 4;
+}
+
 u16 text_area_width(Editor *e) {
   return e->screen_w - e->line_pad_w;
 }
@@ -258,24 +264,6 @@ void update_cursor(Editor *e, GapBuffer *g) {
 
 void clear_selection(GapBuffer *g) {
   g->sel_start = g->sel_end = UINT32_MAX;
-}
-
-void text_move_up(Editor *e, GapBuffer *g) {
-  if (gb_move_up(g)) {
-  }
-}
-
-void text_move_down(Editor *e, GapBuffer *g) {
-  if (gb_move_down(g)) {
-  }
-}
-
-void text_move_left(Editor *e, GapBuffer *g, u32 amount) {
-  gb_move_left(g, 1);
-}
-
-void text_move_right(Editor *e, GapBuffer *g, u32 amount) {
-  gb_move_right(g, 1);
 }
 
 void text_enter(Editor *e, GapBuffer *g) {
@@ -521,7 +509,8 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   // TEXT_PAD_Y
   wprintw(e->statArea, ", line: %d", g->line /* + pad_pos_y ? */);
   wprintw(e->statArea, ", t.h: %d", text_area_height(e));
-  wprintw(e->statArea, ", e.pad_pos_y: %d", e->pad_pos_y);
+  wprintw(e->statArea, ", pad_pos_y: %d", e->pad_pos_y);
+  wprintw(e->statArea, ", pad_h: %d", e->pad_h);
   
   // TEXT_PAD_X
   //wprintw(e->statArea, ", e.pad_pos_x: %d", e->pad_pos_x);
@@ -565,12 +554,21 @@ void print_files(Editor *e) {
   }
 }
 
+void check_pad_sizes(Editor *e, GapBuffer *g) {
+  while (e->pad_h < g->maxlines + 10) {
+    e->pad_h += 20;
+  }
+  wresize(e->linePad, e->pad_h, line_area_width(e, g));
+  wresize(e->textPad, e->pad_h, text_area_width(e));
+}
+
 void draw_editor(Editor *e, GapBuffer *g, int c) {
   
   curs_set(1);
     
 
   if (e->state == TEXT && e->should_refresh) {
+    check_pad_sizes(e, g);
     draw_line_area(e, g); // maybe separate bool for this ?
     print_text_area(e, g);
   }
@@ -628,22 +626,22 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   #endif
   
   if (c == KEY_UP || c == CTRL('i')) {
-    text_move_up(e, g);
+    gb_move_up(g);
     check_selected(e, g);
   }
 
   else if (c == LK_DOWN || c == CTRL('k')) {
-    text_move_down(e, g);
+    gb_move_down(g);
     check_selected(e, g);
   }
 
   else if (c == KEY_RIGHT || c == CTRL('l')) {
-    text_move_right(e, g, 1);
+    gb_move_right(g, 1);
     check_selected(e, g);
   }
 
   else if (c == KEY_LEFT || c == CTRL('j')) {
-    text_move_left(e, g, 1);
+    gb_move_left(g, 1);
     check_selected(e, g);
   }
 

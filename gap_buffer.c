@@ -74,15 +74,17 @@ void setup_signals(void) {
 #define INIT_CAP 1000
 
 typedef struct {
-  char *buf;
-  u32 cap;       // maximum capacity of gapbuffer, should be increased when needed
-  u32 size;      // size of written chars (frontbuffer + backbuffer)
-  u32 front;     // end of frontbuffer
-  u32 point;     // relative position of cursor inside the buffer (get absolute pos with gb_pos)
-  u16 line, col; // number of lines and cols the cursor is at
-  u16 maxlines;  // number of maxlines of current buffer
-  u32 sel_start;
-  u32 sel_end;
+  char *buf;      // the actual gapbuffer
+  u32 cap;        // maximum capacity of gapbuffer, should be increased when needed
+  u32 size;       // size of written chars (frontbuffer + backbuffer)
+  u32 front;      // end of frontbuffer
+  u32 point;      // relative position of cursor inside the buffer (get absolute pos with gb_pos)
+  u16 line, col;        // number of lines and cols the cursor is at
+  u16 maxlines;         // number of maxlines of current buffer
+  u16 maxcols;          // maximum width (in cols) the textpad needs
+  u16 wanted_offset;    // the offset tried to be restored when moving up or down
+  u32 sel_start;        // selection point 1
+  u32 sel_end;          // selection point 2
 } GapBuffer;
 
 
@@ -92,6 +94,7 @@ void gb_init(GapBuffer *g, u32 init_cap) {
   g->front = 0;
   g->point = 0;
   g->maxlines = 1;
+  g->maxcols = 20;
   g->sel_start = UINT32_MAX;
   g->sel_end = UINT32_MAX;
 }
@@ -147,11 +150,19 @@ void gb_check_increase(GapBuffer *g, u32 amount) {
   int debug = 1;
 }
 
-void gb_count_maxlines(GapBuffer *g) {
+void gb_count_limits(GapBuffer *g) {
+  g->maxcols = 20;
   g->maxlines = 1;
-  for (int i = 0; i < g->size; i++)
-    if (gb_get_char(g, i) == LK_NEWLINE)
+
+  u16 cols = 0;
+  for (u32 i = 0; i < g->size; i++) {
+    cols++;
+    if (gb_get_char(g, i) == LK_NEWLINE) {
       g->maxlines += 1;
+      g->maxcols = MAX(g->maxcols, cols);
+      cols = 0;
+    }
+  }
 }
 
 void gb_jump(GapBuffer *g) {
@@ -389,7 +400,7 @@ int gb_read_file(GapBuffer *g, char* filename) {
   g->size = size;
   g->front = size;
   g->buf[g->size + 1] = 0;
-  gb_count_maxlines(g);
+  gb_count_limits(g);
   fclose(file);
   return 0;
 }

@@ -5,9 +5,11 @@
 // [X] BUG: increase buffer when necessary
 // [X] BUG: call endwin() on signals
 // [X] BUG: bug when line_width is bigger than screen_w <- scroll pad on x axis
-// [ ] BUG: increase pad size when necessary
+// [ ] BUG: increase pad_size_w when necessary
 // [ ] BUG: screen resize; refresh bar
 // [ ] BUG: increasing font size does not trigger KEY_RESIZE (?)
+// [ ] BUG: cant go to last line
+// [ ] BUG: first line does not break ???
 
 // [X] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [X] CORE: select text
@@ -132,7 +134,7 @@ void editor_init(Editor *e) {
   
   // INIT TEXT_PAD
   e->textPad = NULL;
-  e->text_pad_w = 500;
+  e->text_pad_w = 100;
   e->textPad = newpad(e->pad_h, e->text_pad_w);
   if (!e->textPad)
     die("Could not init textPad");
@@ -507,15 +509,18 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   //wprintw(e->statArea, ", cap: %d", g->cap);
   
   // TEXT_PAD_Y
-  wprintw(e->statArea, ", line: %d", g->line /* + pad_pos_y ? */);
-  wprintw(e->statArea, ", t.h: %d", text_area_height(e));
-  wprintw(e->statArea, ", pad_pos_y: %d", e->pad_pos_y);
-  wprintw(e->statArea, ", pad_h: %d", e->pad_h);
+  //wprintw(e->statArea, ", line: %d", g->line /* + pad_pos_y ? */);
+  //wprintw(e->statArea, ", t.h: %d", text_area_height(e));
+  //wprintw(e->statArea, ", pad_pos_y: %d", e->pad_pos_y);
+  //wprintw(e->statArea, ", pad_h: %d", e->pad_h);
   
   // TEXT_PAD_X
   //wprintw(e->statArea, ", e.pad_pos_x: %d", e->pad_pos_x);
   //wprintw(e->statArea, ", col: %d", g->col);
-  //wprintw(e->statArea, ", TA_width: %d", text_area_width(e));
+  wprintw(e->statArea, ", TA_width: %d", text_area_width(e));
+  wprintw(e->statArea, ", TP_width: %d", e->text_pad_w);
+  wprintw(e->statArea, ", maxcols: %d", g->maxcols);
+
 
   //wprintw(e->statArea, ", sel_s: %d", g->sel_start);
   //wprintw(e->statArea, ", sel_e: %d", g->sel_end);
@@ -555,11 +560,12 @@ void print_files(Editor *e) {
 }
 
 void check_pad_sizes(Editor *e, GapBuffer *g) {
-  while (e->pad_h < g->maxlines + 10) {
+  while (e->pad_h < g->maxlines + 10)
     e->pad_h += 20;
-  }
-  wresize(e->linePad, e->pad_h, line_area_width(e, g));
-  wresize(e->textPad, e->pad_h, text_area_width(e));
+  while (e->text_pad_w < g->maxcols + 10)
+    e->text_pad_w += 10;
+  wresize(e->linePad, e->pad_h, e->line_pad_w);
+  wresize(e->textPad, e->pad_h, e->text_pad_w);
 }
 
 void draw_editor(Editor *e, GapBuffer *g, int c) {
@@ -672,6 +678,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   else if (c >= 32 && c <= 126) {
     gb_insert_char(g, c);
     g->col += 1;
+    g->maxcols = MAX(g->maxcols, g->col);
     e->should_refresh = true;
     e->dirty = true;
   }

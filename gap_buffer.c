@@ -220,6 +220,7 @@ u32 gb_move_left(GapBuffer *g, u32 amount) {
       g->col = gb_width_left(g);
     }
   }
+  g->wanted_offset = g->col;
   return amount;
 }
 
@@ -240,6 +241,7 @@ u32 gb_move_right(GapBuffer *g, u32 amount) {
     }
     g->point++;
   }
+  g->wanted_offset = g->col;
   return amount;
 }
 
@@ -249,10 +251,11 @@ bool gb_move_down(GapBuffer *g) {
   }
   // move to start of next line
   u16 offset = gb_width_left(g);
+  g->wanted_offset = MAX(g->wanted_offset, offset);
   g->point += gb_width_right(g) + 1;
   // move further right to offset
   u16 new_width = gb_width_right(g);
-  offset = MIN(offset, new_width);
+  offset = MIN(g->wanted_offset, new_width);
   g->point += offset;
   // adjust line and col
   g->line += 1;
@@ -266,12 +269,13 @@ bool gb_move_up(GapBuffer *g) {
   }
   // move to end of previous line
   u16 offset = gb_width_left(g);
+  g->wanted_offset = MAX(g->wanted_offset, offset);
   g->point -= (offset + 1);
   // move to start of line
   u16 new_width = gb_width_left(g);
   g->point -= new_width;
   // move to offset
-  offset = MIN(offset, new_width);
+  offset = MIN(g->wanted_offset, new_width);
   g->point += offset;
   //adjust line and col
   g->line -= 1;

@@ -5,16 +5,15 @@
 // [X] BUG: increase buffer when necessary
 // [X] BUG: call endwin() on signals
 // [X] BUG: bug when line_width is bigger than screen_w <- scroll pad on x axis
-// [ ] BUG: increase pad_size_w when necessary
+// [X] BUG: increase pad_size_w when necessary
 // [ ] BUG: screen resize; refresh bar
 // [ ] BUG: increasing font size does not trigger KEY_RESIZE (?)
 // [ ] BUG: cant go to last line
-// [ ] BUG: first line does not break ???
 
 // [X] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [X] CORE: select text
 // [ ] CORE: copy / paste inside lim
-// [ ] CORE: keep offset when moving up/down
+// [X] CORE: keep offset when moving up/down
 // [ ] CORE: indentation key
 
 // [C] FEAT: save file before closing lim or opening another file

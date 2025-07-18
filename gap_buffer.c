@@ -399,6 +399,7 @@ int gb_read_file(GapBuffer *g, char* filename) {
   g->line = 0;
   g->col = 0;
   g->maxcols = 1;
+  g->wanted_offset = 0;
   g->maxlines = 1;
  
   FILE *file = fopen(filename, "r");

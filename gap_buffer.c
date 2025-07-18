@@ -302,6 +302,14 @@ void gb_enter(GapBuffer *g) {
   g->maxlines++;
 }
 
+void gb_tab(GapBuffer *g, u8 tabsize) {
+  for (int i = 0; i < tabsize; i++) {
+    gb_insert_char(g, ' ');
+  }
+  g->col += tabsize;
+  g->maxcols = MAX(g->maxcols, g->col);
+}
+
 bool gb_has_selection(GapBuffer *g) {
   return g->sel_start != UINT32_MAX; 
 }

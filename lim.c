@@ -13,8 +13,8 @@
 // [X] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [X] CORE: select text
 // [X] CORE: keep offset when moving up/down
+// [X] CORE: indentation key
 // [ ] CORE: copy / paste inside lim
-// [ ] CORE: indentation key
 
 // [C] FEAT: save file before closing lim or opening another file
 // [ ] FEAT: fuzzy find in open dialog
@@ -498,14 +498,14 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   #if DEBUG_BAR
   wprintw(e->statArea, "last: %d", c);
   //wprintw(e->statArea, ", fn: %s", e->filename);
-  wprintw(e->statArea, ", ed: (%d, %d)", g->line, g->col);
-  wprintw(e->statArea, ", point: %d", g->point);
-  wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
+  //wprintw(e->statArea, ", ed: (%d, %d)", g->line, g->col);
+  //wprintw(e->statArea, ", point: %d", g->point);
+  //wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
   
   //wprintw(e->statArea, ", front: %d", g->front);
   //wprintw(e->statArea, ", C: %d", gb_get_current(g));
-  wprintw(e->statArea, ", size: %d", g->size);
-  wprintw(e->statArea, ", cap: %d", g->cap);
+  //wprintw(e->statArea, ", size: %d", g->size);
+  //wprintw(e->statArea, ", cap: %d", g->cap);
   
   // TEXT_PAD_Y
   //wprintw(e->statArea, ", line: %d", g->line /* + pad_pos_y ? */);
@@ -659,6 +659,12 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
  
   else if (c == CTRL('o') || c == LK_ENTER) {
     text_enter(e, g);
+    e->dirty = true;
+  }
+
+  else if (c == CTRL('p')) {
+    gb_tab(g, 2);
+    e->should_refresh = true;
     e->dirty = true;
   }
   

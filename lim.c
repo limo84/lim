@@ -6,14 +6,14 @@
 // [X] BUG: call endwin() on signals
 // [X] BUG: bug when line_width is bigger than screen_w <- scroll pad on x axis
 // [X] BUG: increase pad_size_w when necessary
+// [X] BUG: cant go to last line
 // [ ] BUG: screen resize; refresh bar
 // [ ] BUG: increasing font size does not trigger KEY_RESIZE (?)
-// [ ] BUG: cant go to last line
 
 // [X] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [X] CORE: select text
-// [ ] CORE: copy / paste inside lim
 // [X] CORE: keep offset when moving up/down
+// [ ] CORE: copy / paste inside lim
 // [ ] CORE: indentation key
 
 // [C] FEAT: save file before closing lim or opening another file
@@ -498,14 +498,14 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   #if DEBUG_BAR
   wprintw(e->statArea, "last: %d", c);
   //wprintw(e->statArea, ", fn: %s", e->filename);
-  //wprintw(e->statArea, ", ed: (%d, %d)", g->line, g->col);
-  //wprintw(e->statArea, ", point: %d", g->point);
-  //wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
+  wprintw(e->statArea, ", ed: (%d, %d)", g->line, g->col);
+  wprintw(e->statArea, ", point: %d", g->point);
+  wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
   
   //wprintw(e->statArea, ", front: %d", g->front);
   //wprintw(e->statArea, ", C: %d", gb_get_current(g));
-  //wprintw(e->statArea, ", size: %d", g->size);
-  //wprintw(e->statArea, ", cap: %d", g->cap);
+  wprintw(e->statArea, ", size: %d", g->size);
+  wprintw(e->statArea, ", cap: %d", g->cap);
   
   // TEXT_PAD_Y
   //wprintw(e->statArea, ", line: %d", g->line /* + pad_pos_y ? */);
@@ -516,9 +516,9 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   // TEXT_PAD_X
   //wprintw(e->statArea, ", e.pad_pos_x: %d", e->pad_pos_x);
   //wprintw(e->statArea, ", col: %d", g->col);
-  wprintw(e->statArea, ", TA_width: %d", text_area_width(e));
-  wprintw(e->statArea, ", TP_width: %d", e->text_pad_w);
-  wprintw(e->statArea, ", maxcols: %d", g->maxcols);
+  //wprintw(e->statArea, ", TA_width: %d", text_area_width(e));
+  //wprintw(e->statArea, ", TP_width: %d", e->text_pad_w);
+  //wprintw(e->statArea, ", maxcols: %d", g->maxcols);
 
 
   //wprintw(e->statArea, ", sel_s: %d", g->sel_start);
@@ -570,22 +570,21 @@ void check_pad_sizes(Editor *e, GapBuffer *g) {
 void draw_editor(Editor *e, GapBuffer *g, int c) {
   
   curs_set(1);
-    
 
   if (e->state == TEXT && e->should_refresh) {
     check_pad_sizes(e, g);
     draw_line_area(e, g); // maybe separate bool for this ?
     print_text_area(e, g);
   }
-  
+
   update_cursor(e, g);
 
   if (e->refresh_bar) {
     print_status_line(g, e, c);
     // MOVE CURSOR OUT OF STATUS_BAR
     wmove(e->textPad, g->line, g->col);
- }
-  
+  }
+
   prefresh(e->linePad, e->pad_pos_y, 0, 0, 0, e->screen_h - 2, 4);
   prefresh(e->textPad, e->pad_pos_y, e->pad_pos_x, 0, 4, e->screen_h - 2, e->screen_w - 1);
 
@@ -594,10 +593,7 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     wclear(e->popupArea);
     print_files(e);
     wrefresh(e->popupArea);
-  }
-
-  
-  
+  } 
 }
 
 // ---------------- #KEY HANDLING --------------------------------

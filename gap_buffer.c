@@ -95,6 +95,7 @@ void gb_init(GapBuffer *g, u32 init_cap) {
   g->point = 0;
   g->maxlines = 1;
   g->maxcols = 20;
+  g->wanted_offset = 0;
   g->sel_start = UINT32_MAX;
   g->sel_end = UINT32_MAX;
 }
@@ -192,8 +193,8 @@ u16 gb_width_left(GapBuffer *g) {
 
 u16 gb_width_right(GapBuffer *g) {
   for (int i = 0; i < 10000; i++) {
-    if (g->point + i == g->size - 1)
-      return i;
+    if (g->point + i >= g->size)
+      return i + g->point -g->size;
     if (gb_get_char(g, g->point + i) == LK_NEWLINE)
       return i;
   }
@@ -246,7 +247,7 @@ u32 gb_move_right(GapBuffer *g, u32 amount) {
 }
 
 bool gb_move_down(GapBuffer *g) {
-  if (g->line == g->maxlines - 2) {
+  if (g->line == g->maxlines - 1) {
     return false;
   }
   // move to start of next line
@@ -389,6 +390,7 @@ int gb_read_file(GapBuffer *g, char* filename) {
   g->point = 0;
   g->line = 0;
   g->col = 0;
+  g->maxcols = 1;
   g->maxlines = 1;
  
   FILE *file = fopen(filename, "r");

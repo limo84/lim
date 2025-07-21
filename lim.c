@@ -15,14 +15,18 @@
 // [X] CORE: keep offset when moving up/down
 // [X] CORE: indentation key
 // [ ] CORE: copy / paste inside lim
+// [ ] CORE: copy / paste whole line
+// [ ] CORE: change cursor shape
 
 // [C] FEAT: save file before closing lim or opening another file
+// [ ] FEAT: UTF-8 support
+// [ ] FEAT: copy / paste from outside of vim
 // [ ] FEAT: fuzzy find in open dialog
 // [ ] FEAT: find in file(s)
 // [ ] FEAT: undo
 // [ ] FEAT: second editor
 // [ ] FEAT: use libtermkey or anyting better for keys (resize ?)
-// [ ] FEAT: Chapters
+// [d] FEAT: Chapters
 
 // [ ] PERFORMANCE: e.g. just refresh single line in some cases, ...
 
@@ -70,7 +74,7 @@ bool is_directory(char *path) {
 /************************* #EDITOR ******************************/
 
 typedef enum {
-  TEXT, OPEN
+  TEXT, OPEN, SEARCH,
 } State;
 
 typedef struct {
@@ -88,6 +92,8 @@ typedef struct {
   u32 files_len;       // amount of files found in path
   u32 p_buffer_cap;
   char *p_buffer;
+  u16 search_point;
+  char *search_string;
   bool should_refresh; // if the editor should refresh
   bool refresh_bar;
   bool refresh_text;
@@ -112,6 +118,10 @@ void editor_init(Editor *e) {
   e->p_buffer = malloc(e->p_buffer_cap);
   if (!e->p_buffer)
     die ("cant alloc");
+  e->search_point = 0;
+  e->search_string = malloc(1024); //TODO
+  if (!e->search_string) 
+    die ("cant alloc search string");
   e->p_buffer[0] = 0;
   e->filename = NULL;
   e->should_refresh = false;
@@ -172,6 +182,9 @@ void ncurses_init() {
   if (can_change_color()) {
     // change colors
   }
+  
+  // set cursor to blinking bar
+  system("echo \x1b[\x35 q");
 
   init_pair(1, 1, 0); // RED
   init_pair(2, 2, 0); // GREEN
@@ -190,8 +203,6 @@ void ncurses_init() {
   noecho();
 
   setup_signals();
-  // set cursor to blinking bar
-  system("echo -e -n \x1b[\x35 q");
 }
 
 u16 text_area_height(Editor *e) {
@@ -476,11 +487,11 @@ void print_text_area(Editor *e, GapBuffer *g) {
   wclear(e->textPad);
   
   u16 file_len = strlen(e->filename);
-  /*if (strcmp(e->filename + file_len - 2, ".c") == 0 
+  if (strcmp(e->filename + file_len - 2, ".c") == 0 
       || strcmp(e->filename + file_len - 2, ".h") == 0)
     print_c_file(e, g);
-  else */
-  print_normal(e, g);
+  else
+    print_normal(e, g);
 }
 
 void draw_line_area(Editor *e, GapBuffer *g) {
@@ -558,6 +569,14 @@ void print_files(Editor *e) {
   }
 }
 
+void print_search_window(Editor *e) {
+  wattrset(e->popupArea, COLOR_PAIR(1));
+  box(e->popupArea, ACS_VLINE, ACS_HLINE);
+  wattrset(e->popupArea, COLOR_PAIR(0));
+  mvwprintw(e->popupArea, 1, 1, "%s", e->search_string);
+  
+}
+
 void check_pad_sizes(Editor *e, GapBuffer *g) {
   while (e->pad_h < g->maxlines + 10)
     e->pad_h += 20;
@@ -593,7 +612,14 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     wclear(e->popupArea);
     print_files(e);
     wrefresh(e->popupArea);
-  } 
+  }
+
+  if (e->state == SEARCH && e->should_refresh) {
+    wclear(e->popupArea);
+    wresize(e->popupArea, 3, 40);
+    print_search_window(e);
+    wrefresh(e->popupArea);
+  }
 }
 
 // ---------------- #KEY HANDLING --------------------------------
@@ -611,6 +637,18 @@ void handle_open_state(Editor *e, GapBuffer *g, int c) {
     // gb_write_to_file(g, e->filename);
     open_open_file(e, g);
   }
+}
+
+void handle_search_state(Editor *e, GapBuffer *g, int c) {
+  if (c >= 32 && c <= 126) {
+    e->search_string[e->search_point++] = c;
+  }
+
+  else if (c == CTRL('o') || c == LK_ENTER) {
+    e->state = TEXT;
+  }
+    
+  e->should_refresh = true;
 }
 
 void check_selected(Editor *e, GapBuffer *g) {
@@ -689,6 +727,13 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     e->should_refresh = true;
   }
 
+  else if (c == CTRL('f')) {
+    memset(e->search_string, 0, 1024);
+    e->search_point = 0;
+    e->state = SEARCH;
+    e->should_refresh = true;
+  }
+
   else if (c == CTRL('d')) {
     if (g->sel_start == UINT32_MAX) {
       g->sel_start = g->sel_end = g->point;
@@ -760,9 +805,14 @@ int main(int argc, char **argv) {
       case OPEN:
         handle_open_state(&e, &g, c);
         break;
+      case SEARCH:
+        handle_search_state(&e, &g, c);
+        break;
       case TEXT:
         handle_text_state(&e, &g, c);
         break;
+      default:
+        die("no state");
     }
 
     draw_editor(&e, &g, c);

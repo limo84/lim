@@ -16,7 +16,6 @@
 #define ASSERT(c) assert(c)
 #define MY_ASSERT(c, s, p) if (!(c)) { printf(s, p); exit(1); } 
 
-
 #define CTRL(c) ((c) & 037)
 #define STR_Q 17
 #define LK_NEWLINE 10
@@ -370,6 +369,33 @@ void gb_copy(GapBuffer *g, char* p_buffer) {
 void gb_cut(GapBuffer *g, char* p_buffer) {
   gb_copy(g, p_buffer);
 }
+
+
+bool gb_search(GapBuffer *g, char *s) {
+  if (!s || !s[0]) 
+    return false;
+
+  u8 c = s[0];
+  u32 start = 0; //todo?
+  bool found = false;
+  int i = 0;
+  for (; i < g->size; i++) {
+    if (gb_get_char(g, i) == c) {
+      found = true;
+      for (int j = 1; s[j]; j++) {
+        if (s[j] != c) {
+          found = false;
+          break;
+        }
+      }
+      if (found) {
+        g->point = i;
+      }
+    }
+  }
+  
+}
+
 
 // TODO
 // void gb_trim_trailing()  <- trim trailing whitespaces

@@ -38,6 +38,8 @@
 #include "gap_buffer.c"
 
 #define LK_TICK 39
+#define LK_PGDN 338
+#define LK_PGUP 339
 /************************ #MISC ******************************/
 
 #define TEXT_RED(w) wattrset(w, COLOR_PAIR(1)) 
@@ -665,12 +667,12 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   #endif
   
   if (c == KEY_UP || c == CTRL('i')) {
-    gb_move_up(g);
+    gb_move_up(g, 1);
     check_selected(e, g);
   }
 
   else if (c == LK_DOWN || c == CTRL('k')) {
-    gb_move_down(g);
+    gb_move_down(g, 1);
     check_selected(e, g);
   }
 
@@ -684,6 +686,14 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     check_selected(e, g);
   }
 
+  else if (c == LK_PGDN) {
+    gb_move_down(g, 10);
+  }
+  
+  else if (c == LK_PGUP) {
+    gb_move_up(g, 10);
+  }
+  
   else if (c == KEY_BACKSPACE || c == CTRL('u')) {
     text_backspace(e, g);
     e->dirty = true;

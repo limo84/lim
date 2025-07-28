@@ -123,6 +123,14 @@ char gb_get_current(GapBuffer *g) {
   return gb_get_char(g, g->point);
 }
 
+bool gb_has_selection(GapBuffer *g) {
+  return g->sel_start != UINT32_MAX; 
+}
+
+void gb_clear_selection(GapBuffer *g) {
+  g->sel_start = g->sel_end = UINT32_MAX;
+}
+
 void gb_check_increase(GapBuffer *g, u32 amount) {
   
   if (g->size + amount < g->cap)
@@ -308,10 +316,6 @@ void gb_tab(GapBuffer *g, u8 tabsize) {
   }
   g->col += tabsize;
   g->maxcols = MAX(g->maxcols, g->col);
-}
-
-bool gb_has_selection(GapBuffer *g) {
-  return g->sel_start != UINT32_MAX; 
 }
 
 u32 gb_backspace(GapBuffer *g, u32 amount) {

@@ -290,10 +290,6 @@ void update_cursor(Editor *e, GapBuffer *g) {
   wmove(e->textPad, g->line, g->col);
 }
 
-void clear_selection(GapBuffer *g) {
-  g->sel_start = g->sel_end = UINT32_MAX;
-}
-
 void text_enter(Editor *e, GapBuffer *g) {
   gb_enter(g);
   e->should_refresh = true;
@@ -316,7 +312,7 @@ void text_backspace(Editor *e, GapBuffer *g) {
       gb_move_right(g, amount);
 
     e->should_refresh = true;
-    clear_selection(g);
+    gb_clear_selection(g);
   }
 
   e->should_refresh = gb_backspace(g, amount);
@@ -330,7 +326,7 @@ void text_copy(Editor *e, GapBuffer *g) {
   // TODO MAKE SURE THAT P_BUFFER IS BIG ENOUGH!!
   gb_copy(g, e->p_buffer);
   
-  clear_selection(g);
+  gb_clear_selection(g);
   e->should_refresh = true;
 }
 
@@ -343,13 +339,14 @@ void text_cut(Editor *e, GapBuffer *g) {
   gb_copy(g, e->p_buffer);
   gb_backspace(g, 0);
 
-  clear_selection(g);
+  gb_clear_selection(g);
   e->should_refresh = true;
 }
 
 void text_paste(Editor *e, GapBuffer *g) {
   gb_jump(g);
   u32 len = strlen(e->p_buffer);
+  gb_check_increase(g, len);
   //die("len: %d", len);
   strncpy(g->buf + g->point, e->p_buffer, len);
   g->front += len;
@@ -772,7 +769,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     text_copy(e, g);
 
   else if (c == CTRL('x')) {
-    text_cut(e, g);
+    //text_cut(e, g);
   }
 
   else if (c == CTRL('v')) {

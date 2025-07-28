@@ -247,8 +247,8 @@ u32 gb_move_right(GapBuffer *g, u32 amount) {
 
 u32 gb_move_down(GapBuffer *g, u32 amount) {
   
-  if (g->line + amount >= g->maxlines)
-    amount = g->maxlines - g->line;
+  if (g->line + amount >= g->maxlines - 1)
+    amount = g->maxlines - g->line - 1; 
 
   for (u32 i = 0; i < amount; i++) {
     // move to start of next line

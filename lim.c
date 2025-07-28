@@ -52,6 +52,7 @@
 #define PAIR_BAR COLOR_PAIR(8) // White/Blue
 #define PAIR_SELECTED COLOR_PAIR(9) // Black/White
 
+ 
 
 char *get_path() {
   #define PATH_MAX 4096
@@ -80,6 +81,13 @@ typedef enum {
 } State;
 
 typedef struct {
+  u8 text;
+  u8 type;
+  u8 keyword;
+  u8 comment;  
+} Mode;
+
+typedef struct {
   u16 screen_h;        // height of window in rows
   u16 screen_w;        // width of window in cols
   u32 pad_pos_y;       // offset from top of pad to top of screen 
@@ -101,6 +109,7 @@ typedef struct {
   bool refresh_text;
   bool refresh_line;
   bool dirty;
+  Mode mode;
   State state;         // the state of the editor
   WINDOW *textPad;     // the area for the text
   WINDOW *linePad;     // the area for the linenumbers
@@ -170,6 +179,11 @@ void editor_init(Editor *e) {
   mvwin(e->statArea, e->screen_h - 1, 0);
   wbkgd(e->statArea, PAIR_BAR);
   //wattrset(e->statArea, COLOR_PAIR(4));
+  //
+  e->mode.text = 0;
+  //mode->type = 1;
+  //mode->keyword = 2;
+  //mode->comment = 3;
 }
 
 void ncurses_init() {
@@ -185,9 +199,6 @@ void ncurses_init() {
     // change colors
   }
   
-  // set cursor to blinking bar
-  system("echo \x1b[\x35 q");
-
   init_pair(1, 1, 0); // RED
   init_pair(2, 2, 0); // GREEN
   init_pair(3, COLOR_YELLOW, 0); // YELLOW
@@ -199,11 +210,14 @@ void ncurses_init() {
   init_pair(9, COLOR_BLACK, COLOR_WHITE); // SELECTED_WHITE
   init_pair(10, COLOR_RED, COLOR_WHITE); // SELECTED_RED
   init_pair(11, COLOR_BLACK, COLOR_WHITE); // SELECTED_WHITE
-
+ 
   raw();
   nonl(); // for LK_ENTER|13
   noecho();
-
+  
+  // set cursor to blinking bar
+  system("echo \x1b[\x35 q");
+  
   setup_signals();
 }
 
@@ -511,13 +525,13 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   #if DEBUG_BAR
   wprintw(e->statArea, "last: %d", c);
   //wprintw(e->statArea, ", fn: %s", e->filename);
-  //wprintw(e->statArea, ", ed: (%d, %d)", g->line, g->col);
-  //wprintw(e->statArea, ", point: %d", g->point);
-  //wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
+  wprintw(e->statArea, ", ed: (%d, %d)", g->line, g->col);
+  wprintw(e->statArea, ", point: %d", g->point);
+  wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
   
   //wprintw(e->statArea, ", front: %d", g->front);
   //wprintw(e->statArea, ", C: %d", gb_get_current(g));
-  //wprintw(e->statArea, ", size: %d", g->size);
+  wprintw(e->statArea, ", size: %d", g->size);
   //wprintw(e->statArea, ", cap: %d", g->cap);
   
   // TEXT_PAD_Y
@@ -687,11 +701,11 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   }
 
   else if (c == LK_PGDN) {
-    gb_move_down(g, 10);
+    gb_move_down(g, 50);
   }
   
   else if (c == LK_PGUP) {
-    gb_move_up(g, 10);
+    gb_move_up(g, 50);
   }
   
   else if (c == KEY_BACKSPACE || c == CTRL('u')) {

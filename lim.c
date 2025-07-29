@@ -19,7 +19,7 @@
 // [ ] CORE: change cursor shape
 
 // [C] FEAT: save file before closing lim or opening another file
-// [C] FEAT: light mode
+// [X] FEAT: light mode
 // [ ] FEAT: UTF-8 support
 // [ ] FEAT: copy / paste from outside of vim
 // [ ] FEAT: fuzzy find in open dialog
@@ -172,7 +172,7 @@ void editor_init(Editor *e) {
   e->state = TEXT;
   getmaxyx(stdscr, e->screen_h, e->screen_w);
   
-  set_light_mode(e);
+  set_dark_mode(e);
   
   e->pad_h = 100;
   
@@ -820,7 +820,11 @@ int main(int argc, char **argv) {
 
   get_file_system(e.path, &e.files, &e.files_len); 
   
-  if (argc > 1) {
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "-l") == 0) {
+      set_light_mode(&e);
+      continue;
+    }
     int len = MIN(strlen(argv[1]), 100);
     e.filename = calloc(len, 1);
     if (!e.filename)
@@ -833,7 +837,9 @@ int main(int argc, char **argv) {
       gb_read_file(&g, e.filename);
       e.should_refresh = true;
     }
-  } else {
+  } 
+  
+  if (argc == 1) {
     e.state = OPEN;
   }
 

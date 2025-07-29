@@ -15,7 +15,7 @@
 // [X] CORE: keep offset when moving up/down
 // [X] CORE: indentation key
 // [X] CORE: copy / paste inside lim
-// [ ] CORE: copy / paste whole line
+// [X] CORE: copy / paste whole line
 // [ ] CORE: change cursor shape
 
 // [C] FEAT: save file before closing lim or opening another file
@@ -42,18 +42,6 @@
 #define LK_PGDN 338
 #define LK_PGUP 339
 /************************ #MISC ******************************/
-
-#define TEXT_RED(w) wattrset(w, COLOR_PAIR(1)) 
-#define TEXT_GREEN(w) wattrset(w, COLOR_PAIR(2))
-#define TEXT_YELLOW(w) wattrset(w, COLOR_PAIR(3))
-#define TEXT_BLUE(w) wattrset(w, COLOR_PAIR(4))
-#define TEXT_PINK(w) wattrset(w, COLOR_PAIR(5))
-#define TEXT_TEAL(w) wattrset(w, COLOR_PAIR(6))
-#define TEXT_WHITE(w) wattrset(w, COLOR_PAIR(7))
-#define PAIR_BAR COLOR_PAIR(8) // White/Blue
-#define PAIR_SELECTED COLOR_PAIR(9) // Black/White
-
- 
 
 char *get_path() {
   #define PATH_MAX 4096
@@ -82,10 +70,13 @@ typedef enum {
 } State;
 
 typedef struct {
-  u8 text;
-  u8 type;
-  u8 keyword;
-  u8 comment;  
+  u16 text;
+  u16 type;
+  u16 keyword;
+  u16 comment;
+  u16 lines;
+  u16 bar;
+  u16 selected;
 } Mode;
 
 typedef struct {
@@ -118,6 +109,42 @@ typedef struct {
   WINDOW *statArea;
 } Editor;
 
+void set_dark_mode(Editor *e) {
+  init_pair(0, COLOR_GREEN, COLOR_BLACK);
+  init_pair(1, COLOR_GREEN, COLOR_BLACK);
+  init_pair(2, COLOR_RED, COLOR_BLACK);
+  init_pair(3, COLOR_BLUE, COLOR_BLACK);
+  init_pair(4, COLOR_YELLOW, COLOR_BLACK);
+  init_pair(5, COLOR_WHITE, COLOR_BLUE);
+  init_pair(6, COLOR_BLACK, COLOR_WHITE);
+  
+  e->mode.text = COLOR_PAIR(0); 
+  e->mode.type = COLOR_PAIR(1); 
+  e->mode.keyword = COLOR_PAIR(2); 
+  e->mode.comment = COLOR_PAIR(3); 
+  e->mode.lines = COLOR_PAIR(4); 
+  e->mode.bar = COLOR_PAIR(5);
+  e->mode.selected = COLOR_PAIR(6);
+}
+
+void set_light_mode(Editor *e) {
+  init_pair(1, COLOR_BLACK, COLOR_WHITE);
+  init_pair(2, COLOR_GREEN, COLOR_WHITE);
+  init_pair(3, COLOR_RED, COLOR_WHITE);
+  init_pair(4, COLOR_BLUE, COLOR_WHITE);
+  init_pair(5, COLOR_YELLOW, COLOR_WHITE);
+  init_pair(6, COLOR_WHITE, COLOR_BLUE); // BAR
+  init_pair(7, COLOR_WHITE, COLOR_BLACK); // SELECTED_WHITE
+  
+  e->mode.text = COLOR_PAIR(1); 
+  e->mode.type = COLOR_PAIR(2); 
+  e->mode.keyword = COLOR_PAIR(3); 
+  e->mode.comment = COLOR_PAIR(4); 
+  e->mode.lines = COLOR_PAIR(5); 
+  e->mode.bar = COLOR_PAIR(6);
+  e->mode.selected = COLOR_PAIR(7);
+}
+
 void editor_init(Editor *e) {
   e->screen_h = 0;
   e->screen_w = 0;
@@ -144,14 +171,18 @@ void editor_init(Editor *e) {
   e->path = get_path();
   e->state = TEXT;
   getmaxyx(stdscr, e->screen_h, e->screen_w);
-
+  
+  set_light_mode(e);
+  
+  e->pad_h = 100;
+  
   // INIT LINE_PAD
   e->linePad = NULL;
-  e->pad_h = 100;
   e->line_pad_w = 4; // TODO
   e->linePad = newpad(e->pad_h, e->line_pad_w);
   if (!e->linePad)
     die("Could not init linePad");
+  wbkgd(e->linePad, e->mode.lines);
   
   // INIT TEXT_PAD
   e->textPad = NULL;
@@ -159,7 +190,8 @@ void editor_init(Editor *e) {
   e->textPad = newpad(e->pad_h, e->text_pad_w);
   if (!e->textPad)
     die("Could not init textPad");
-  wattrset(e->textPad, COLOR_PAIR(1));
+  wbkgd(e->textPad, e->mode.text);
+  //wattrset(e->textPad, e->mode.text);
   keypad(e->textPad, TRUE);
  
   // INIT POPUP_AREA
@@ -178,14 +210,15 @@ void editor_init(Editor *e) {
   // INIT STAT_AREA
   e->statArea = newwin(1, e->screen_w, 0, 0);
   mvwin(e->statArea, e->screen_h - 1, 0);
-  wbkgd(e->statArea, PAIR_BAR);
+  wbkgd(e->statArea, e->mode.bar);
   //wattrset(e->statArea, COLOR_PAIR(4));
   //
-  e->mode.text = 0;
   //mode->type = 1;
   //mode->keyword = 2;
   //mode->comment = 3;
 }
+
+
 
 void ncurses_init() {
   initscr();
@@ -199,19 +232,7 @@ void ncurses_init() {
   if (can_change_color()) {
     // change colors
   }
-  
-  init_pair(1, 1, 0); // RED
-  init_pair(2, 2, 0); // GREEN
-  init_pair(3, COLOR_YELLOW, 0); // YELLOW
-  init_pair(4, COLOR_BLUE, 0); // BLUE
-  init_pair(5, 5, 0); // PINK
-  init_pair(6, 6, 0); // TEAL
-  init_pair(7, 7, 0); // WHITE
-  init_pair(8, COLOR_WHITE, COLOR_BLUE); // BAR
-  init_pair(9, COLOR_BLACK, COLOR_WHITE); // SELECTED_WHITE
-  init_pair(10, COLOR_RED, COLOR_WHITE); // SELECTED_RED
-  init_pair(11, COLOR_BLACK, COLOR_WHITE); // SELECTED_WHITE
- 
+
   raw();
   nonl(); // for LK_ENTER|13
   noecho();
@@ -392,7 +413,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
     if (is_line_comment) {
       if (c == LK_NEWLINE) {
         is_line_comment = false;
-        TEXT_RED(e->textPad);
+        wattrset(e->textPad, e->mode.text); 
       }
       waddch(e->textPad, c);
       continue;
@@ -402,7 +423,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
       waddch(e->textPad, c);
       if (c == LK_TICK) {
         is_char = false;
-        wattrset(e->textPad, COLOR_PAIR(0));
+        wattrset(e->textPad, e->mode.text);
       }
       continue;
     }
@@ -411,7 +432,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
       waddch(e->textPad, c);
       if (c == '"') {
         is_string = false;
-        wattrset(e->textPad, COLOR_PAIR(0));
+        wattrset(e->textPad, e->mode.text);
       }
       continue;
     }
@@ -420,7 +441,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
       char d = gb_get_char(g, i + 1);
       if (d  == '/') { 
         is_line_comment = true;
-        TEXT_BLUE(e->textPad);
+        wattrset(e->textPad, e->mode.comment);
         waddch(e->textPad, c);
         waddch(e->textPad, d);
         i += 1;
@@ -435,14 +456,14 @@ void print_c_file(Editor *e, GapBuffer *g) {
 
     if (c == LK_TICK) {
       is_char = true;
-      wattrset(e->textPad, COLOR_PAIR(3));
+      wattrset(e->textPad, e->mode.lines);
       waddch(e->textPad, c);
       continue;
     }
     
     if (c == '"') {
       is_string = true;
-      TEXT_TEAL(e->textPad);
+      wattrset(e->textPad, e->mode.lines);
       waddch(e->textPad, c);
       continue;
     }
@@ -474,11 +495,11 @@ void print_c_file(Editor *e, GapBuffer *g) {
     }
 
     if (is_keyword)
-      TEXT_RED(e->textPad);
+      wattrset(e->textPad, e->mode.keyword);
     else if (is_type)
-      TEXT_GREEN(e->textPad);
+      wattrset(e->textPad, e->mode.type);
     else
-      wattrset(e->textPad, COLOR_PAIR(0));
+      wattrset(e->textPad, e->mode.text);
 
     waddstr(e->textPad, token);
   }
@@ -491,17 +512,19 @@ void print_normal(Editor *e, GapBuffer *g) {
 
   for (u32 i = 0; i < g->size; i++) {
     if (i >= sel_1 && i < sel_2)
-      wattrset(e->textPad, COLOR_PAIR(9));
+      wattrset(e->textPad, e->mode.selected);
     else
-      TEXT_WHITE(e->textPad);
+      wattrset(e->textPad, e->mode.text);
     waddch(e->textPad, gb_get_char(g, i));
   }
 }
 
 void print_text_area(Editor *e, GapBuffer *g) {
   wmove(e->textPad, 0, 0);
+  wattrset(e->textPad, e->mode.text);
+  //die("mode: %d", e->mode.text);
   wclear(e->textPad);
-  
+
   u16 file_len = strlen(e->filename);
   if (strcmp(e->filename + file_len - 2, ".c") == 0 
       || strcmp(e->filename + file_len - 2, ".h") == 0)
@@ -511,7 +534,7 @@ void print_text_area(Editor *e, GapBuffer *g) {
 }
 
 void draw_line_area(Editor *e, GapBuffer *g) {
-  TEXT_YELLOW(e->linePad);
+  wattrset(e->linePad, e->mode.lines);
   wclear(e->linePad);
   for (int i = 0; i <= g->maxlines; i++) {
     mvwprintw(e->linePad, i - 1, 0, "%*d\n", 3, i); //TODO loga(maxlines)

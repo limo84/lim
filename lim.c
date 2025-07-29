@@ -14,11 +14,12 @@
 // [X] CORE: select text
 // [X] CORE: keep offset when moving up/down
 // [X] CORE: indentation key
-// [ ] CORE: copy / paste inside lim
+// [X] CORE: copy / paste inside lim
 // [ ] CORE: copy / paste whole line
 // [ ] CORE: change cursor shape
 
 // [C] FEAT: save file before closing lim or opening another file
+// [C] FEAT: light mode
 // [ ] FEAT: UTF-8 support
 // [ ] FEAT: copy / paste from outside of vim
 // [ ] FEAT: fuzzy find in open dialog
@@ -320,14 +321,15 @@ void text_backspace(Editor *e, GapBuffer *g) {
 
 void text_copy(Editor *e, GapBuffer *g) {
   
-  if (g->sel_start == UINT32_MAX)
-    return;
+  if (!gb_has_selection(g)) {
+    
+  }
   
   // TODO MAKE SURE THAT P_BUFFER IS BIG ENOUGH!!
-  gb_copy(g, e->p_buffer);
+  //gb_copy(g, e->p_buffer);
   
-  gb_clear_selection(g);
-  e->should_refresh = true;
+  //gb_clear_selection(g);
+  //e->should_refresh = true;
 }
 
 void text_cut(Editor *e, GapBuffer *g) {
@@ -336,7 +338,7 @@ void text_cut(Editor *e, GapBuffer *g) {
     return;
 
   // TODO MAKE SURE THAT P_BUFFER IS BIG ENOUGH!!
-  gb_copy(g, e->p_buffer);
+  gb_copy(g, e->p_buffer, e->p_buffer_cap);
   gb_backspace(g, 0);
 
   gb_clear_selection(g);
@@ -352,6 +354,7 @@ void text_paste(Editor *e, GapBuffer *g) {
   g->front += len;
   g->size += len;
   gb_move_right(g, len);
+  gb_count_limits(g);
   e->should_refresh = true;
 }
 
@@ -522,11 +525,11 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   #if DEBUG_BAR
   wprintw(e->statArea, "last: %d", c);
   //wprintw(e->statArea, ", fn: %s", e->filename);
-  wprintw(e->statArea, ", ed: (%d, %d)", g->line, g->col);
+  wprintw(e->statArea, ", ed: (%d, %d)", g->line+1, g->col+1);
   wprintw(e->statArea, ", point: %d", g->point);
-  wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
+  //wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
   
-  //wprintw(e->statArea, ", front: %d", g->front);
+  wprintw(e->statArea, ", front: %d", g->front);
   //wprintw(e->statArea, ", C: %d", gb_get_current(g));
   wprintw(e->statArea, ", size: %d", g->size);
   //wprintw(e->statArea, ", cap: %d", g->cap);
@@ -547,7 +550,7 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
 
   //wprintw(e->statArea, ", sel_s: %d", g->sel_start);
   //wprintw(e->statArea, ", sel_e: %d", g->sel_end);
-  //wprintw(e->statArea, ", p: %s", e->p_buffer);
+  wprintw(e->statArea, ", p: %s", e->p_buffer);
   
   //wprintw(e->statArea, ", maxl: %d", g->maxlines);
   
@@ -766,7 +769,7 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   }
 
   else if (c == CTRL('c'))
-    text_copy(e, g);
+    e->should_refresh = gb_copy(g, e->p_buffer, e->p_buffer_cap);
 
   else if (c == CTRL('x')) {
     //text_cut(e, g);

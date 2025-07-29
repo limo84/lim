@@ -359,20 +359,36 @@ void gb_end(GapBuffer *g) {
 }
 
 // TODO check cap before !!!
-void gb_copy(GapBuffer *g, char* p_buffer) {
-  u32 sel_left = MIN(g->sel_start, g->sel_end);
-  u32 sel_right = MAX(g->sel_start, g->sel_end);
+bool gb_copy(GapBuffer *g, char* p_buffer, u32 cap) {
+  
+  u32 sel_left;
+  u32 sel_right;
+
+  memset(p_buffer, 0, cap);
+
+  if (!gb_has_selection(g)) {
+    // copy line
+    sel_left = g->point - gb_width_left(g);
+    sel_right = g->point + gb_width_right(g) + 1;
+  } else {
+    sel_left = MIN(g->sel_start, g->sel_end);
+    sel_right = MAX(g->sel_start, g->sel_end) + 1;
+  }
+  
   u32 len = sel_right - sel_left;
 
-  g->point = sel_right; // to move all of the string to frontbuffer
+  gb_move_right(g, sel_right - g->point); // to move all of the string to frontbuffer
+  
   gb_jump(g);
  
   strncpy(p_buffer, g->buf + sel_left, len);
   p_buffer[len + 1] = 0;
+  gb_clear_selection(g);
+  return true;
 }
 
 void gb_cut(GapBuffer *g, char* p_buffer) {
-  gb_copy(g, p_buffer);
+  //gb_copy(g, p_buffer);
 }
 
 

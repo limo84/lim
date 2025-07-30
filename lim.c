@@ -9,6 +9,7 @@
 // [X] BUG: cant go to last line
 // [ ] BUG: screen resize; refresh bar
 // [ ] BUG: increasing font size does not trigger KEY_RESIZE (?)
+// [ ] BUG: Save indicator not shown in PROD
 
 // [X] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
 // [X] CORE: select text
@@ -16,7 +17,9 @@
 // [X] CORE: indentation key
 // [X] CORE: copy / paste inside lim
 // [X] CORE: copy / paste whole line
+// [ ] CORE: cut / paste (+  whole line)
 // [ ] CORE: change cursor shape
+// [ ] CORE: trim unnecessary whitespace
 
 // [C] FEAT: save file before closing lim or opening another file
 // [X] FEAT: light mode
@@ -77,6 +80,7 @@ typedef struct {
   u16 lines;
   u16 bar;
   u16 selected;
+  u16 string;
 } Mode;
 
 typedef struct {
@@ -110,21 +114,27 @@ typedef struct {
 } Editor;
 
 void set_dark_mode(Editor *e) {
-  init_pair(0, COLOR_GREEN, COLOR_BLACK);
-  init_pair(1, COLOR_GREEN, COLOR_BLACK);
-  init_pair(2, COLOR_RED, COLOR_BLACK);
-  init_pair(3, COLOR_BLUE, COLOR_BLACK);
-  init_pair(4, COLOR_YELLOW, COLOR_BLACK);
-  init_pair(5, COLOR_WHITE, COLOR_BLUE);
-  init_pair(6, COLOR_BLACK, COLOR_WHITE);
-  
-  e->mode.text = COLOR_PAIR(0); 
-  e->mode.type = COLOR_PAIR(1); 
-  e->mode.keyword = COLOR_PAIR(2); 
-  e->mode.comment = COLOR_PAIR(3); 
-  e->mode.lines = COLOR_PAIR(4); 
-  e->mode.bar = COLOR_PAIR(5);
-  e->mode.selected = COLOR_PAIR(6);
+  init_pair(1, COLOR_WHITE, COLOR_BLACK);
+  init_pair(2, COLOR_GREEN, COLOR_BLACK);
+  init_pair(3, COLOR_RED, COLOR_BLACK);
+  init_pair(4, COLOR_BLUE, COLOR_BLACK);
+  init_pair(5, COLOR_YELLOW, COLOR_BLACK);
+  init_pair(6, COLOR_WHITE, COLOR_BLUE);
+  init_pair(7, COLOR_BLACK, COLOR_WHITE);
+  init_pair(8, COLOR_CYAN, COLOR_BLACK);
+
+  e->mode.text = COLOR_PAIR(1); 
+  e->mode.type = COLOR_PAIR(2); 
+  e->mode.keyword = COLOR_PAIR(3); 
+  e->mode.comment = COLOR_PAIR(4); 
+  e->mode.lines = COLOR_PAIR(5); 
+  e->mode.bar = COLOR_PAIR(6);
+  e->mode.selected = COLOR_PAIR(7);
+  e->mode.string = COLOR_PAIR(8);
+
+  wbkgd(e->linePad, e->mode.lines);
+  wbkgd(e->textPad, e->mode.text);
+  wbkgd(e->statArea, e->mode.bar);
 }
 
 void set_light_mode(Editor *e) {
@@ -143,6 +153,11 @@ void set_light_mode(Editor *e) {
   e->mode.lines = COLOR_PAIR(5); 
   e->mode.bar = COLOR_PAIR(6);
   e->mode.selected = COLOR_PAIR(7);
+
+  bkgd(e->mode.text);  
+  wbkgd(e->linePad, e->mode.lines);
+  wbkgd(e->textPad, e->mode.text);
+  wbkgd(e->statArea, e->mode.bar);
 }
 
 void editor_init(Editor *e) {
@@ -172,7 +187,6 @@ void editor_init(Editor *e) {
   e->state = TEXT;
   getmaxyx(stdscr, e->screen_h, e->screen_w);
   
-  set_dark_mode(e);
   
   e->pad_h = 100;
   
@@ -182,7 +196,6 @@ void editor_init(Editor *e) {
   e->linePad = newpad(e->pad_h, e->line_pad_w);
   if (!e->linePad)
     die("Could not init linePad");
-  wbkgd(e->linePad, e->mode.lines);
   
   // INIT TEXT_PAD
   e->textPad = NULL;
@@ -190,7 +203,6 @@ void editor_init(Editor *e) {
   e->textPad = newpad(e->pad_h, e->text_pad_w);
   if (!e->textPad)
     die("Could not init textPad");
-  wbkgd(e->textPad, e->mode.text);
   //wattrset(e->textPad, e->mode.text);
   keypad(e->textPad, TRUE);
  
@@ -210,15 +222,12 @@ void editor_init(Editor *e) {
   // INIT STAT_AREA
   e->statArea = newwin(1, e->screen_w, 0, 0);
   mvwin(e->statArea, e->screen_h - 1, 0);
-  wbkgd(e->statArea, e->mode.bar);
   //wattrset(e->statArea, COLOR_PAIR(4));
   //
   //mode->type = 1;
   //mode->keyword = 2;
   //mode->comment = 3;
 }
-
-
 
 void ncurses_init() {
   initscr();
@@ -233,6 +242,7 @@ void ncurses_init() {
     // change colors
   }
 
+  
   raw();
   nonl(); // for LK_ENTER|13
   noecho();
@@ -456,14 +466,14 @@ void print_c_file(Editor *e, GapBuffer *g) {
 
     if (c == LK_TICK) {
       is_char = true;
-      wattrset(e->textPad, e->mode.lines);
+      wattrset(e->textPad, e->mode.string);
       waddch(e->textPad, c);
       continue;
     }
     
     if (c == '"') {
       is_string = true;
-      wattrset(e->textPad, e->mode.lines);
+      wattrset(e->textPad, e->mode.string);
       waddch(e->textPad, c);
       continue;
     }
@@ -479,7 +489,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
     token[j] = 0;
     
     // KEYWORDS
-    char *keywords[] = {"const", "return"};
+    char *keywords[] = {"break", "continue", "return"};
     bool is_keyword = false;
     for (int i = 0; i < 2; i++) {
       if (strcmp(token, keywords[i]) == 0)
@@ -813,7 +823,8 @@ int main(int argc, char **argv) {
   
   Editor e;
   editor_init(&e);
-
+  set_dark_mode(&e);
+  
   GapBuffer g;
   gb_init(&g, INIT_CAP);
   g.buf = calloc(g.cap, sizeof(char));

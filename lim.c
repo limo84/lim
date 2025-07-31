@@ -66,6 +66,20 @@ bool is_directory(char *path) {
   return S_ISDIR(statbuf.st_mode);
 }
 
+typedef enum {
+  BLINKING_BLOCK,
+  STEADY_BLOCK,
+  BLINKING_UNDERLINE,
+  STEADY_UNDERLINE,
+  BLINKING_BAR,
+  STEADY_BAR,
+} CursorShape;
+
+void set_cursor_shape(int code) {
+  printf("\033[%d q", code);
+  fflush(stdout); // Ensure it gets sent to terminal
+}
+
 /************************* #EDITOR ******************************/
 
 typedef enum {
@@ -230,7 +244,16 @@ void editor_init(Editor *e) {
 }
 
 void ncurses_init() {
+  
+  set_cursor_shape(2);
+  
   initscr();
+  noecho();
+  curs_set(1);
+  //clear();
+  //refresh();
+  set_cursor_shape(5);
+
   start_color();
   atexit((void*)endwin);
 
@@ -245,10 +268,6 @@ void ncurses_init() {
   
   raw();
   nonl(); // for LK_ENTER|13
-  noecho();
-  
-  // set cursor to blinking bar
-  system("echo \x1b[\x35 q");
   
   setup_signals();
 }
@@ -637,7 +656,7 @@ void check_pad_sizes(Editor *e, GapBuffer *g) {
 
 void draw_editor(Editor *e, GapBuffer *g, int c) {
   
-  curs_set(1);
+  //curs_set(1);
 
   if (e->state == TEXT && e->should_refresh) {
     check_pad_sizes(e, g);
@@ -657,7 +676,7 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
   prefresh(e->textPad, e->pad_pos_y, e->pad_pos_x, 0, 4, e->screen_h - 2, e->screen_w - 1);
 
   if (e->state == OPEN && e->should_refresh) {
-    curs_set(0);
+    //curs_set(0);
     wclear(e->popupArea);
     print_files(e);
     wrefresh(e->popupArea);
@@ -794,9 +813,11 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   else if (c == CTRL('d')) {
     if (g->sel_start == UINT32_MAX) {
       g->sel_start = g->sel_end = g->point;
+      set_cursor_shape(2);
     }
     else {
       g->sel_start = g->sel_end = UINT32_MAX;
+      set_cursor_shape(5);
       e->should_refresh = true;
     }
   }

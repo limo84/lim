@@ -656,8 +656,9 @@ void check_pad_sizes(Editor *e, GapBuffer *g) {
 
 void draw_editor(Editor *e, GapBuffer *g, int c) {
   
-  //curs_set(1);
-
+  curs_set(1); // not needed; cursor will be shown in search box
+  set_cursor_shape(5);
+  
   if (e->state == TEXT && e->should_refresh) {
     check_pad_sizes(e, g);
     draw_line_area(e, g); // maybe separate bool for this ?
@@ -676,7 +677,7 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
   prefresh(e->textPad, e->pad_pos_y, e->pad_pos_x, 0, 4, e->screen_h - 2, e->screen_w - 1);
 
   if (e->state == OPEN && e->should_refresh) {
-    //curs_set(0);
+    curs_set(0);
     wclear(e->popupArea);
     print_files(e);
     wrefresh(e->popupArea);
@@ -822,8 +823,10 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     }
   }
 
-  else if (c == CTRL('c'))
+  else if (c == CTRL('c')) {
     e->should_refresh = gb_copy(g, e->p_buffer, e->p_buffer_cap);
+    set_cursor_shape(5);
+  }
 
   else if (c == CTRL('x')) {
     //text_cut(e, g);

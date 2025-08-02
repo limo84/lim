@@ -67,7 +67,7 @@ bool is_directory(char *path) {
 }
 
 typedef enum {
-  BLINKING_BLOCK,
+  BLINKING_BLOCK = 1,
   STEADY_BLOCK,
   BLINKING_UNDERLINE,
   STEADY_UNDERLINE,
@@ -245,14 +245,12 @@ void editor_init(Editor *e) {
 
 void ncurses_init() {
   
-  set_cursor_shape(2);
   
   initscr();
   noecho();
+  
   curs_set(1);
-  //clear();
-  //refresh();
-  set_cursor_shape(5);
+  set_cursor_shape(BLINKING_BAR);
 
   start_color();
   atexit((void*)endwin);
@@ -264,7 +262,6 @@ void ncurses_init() {
   if (can_change_color()) {
     // change colors
   }
-
   
   raw();
   nonl(); // for LK_ENTER|13
@@ -656,9 +653,6 @@ void check_pad_sizes(Editor *e, GapBuffer *g) {
 
 void draw_editor(Editor *e, GapBuffer *g, int c) {
   
-  curs_set(1); // not needed; cursor will be shown in search box
-  set_cursor_shape(5);
-  
   if (e->state == TEXT && e->should_refresh) {
     check_pad_sizes(e, g);
     draw_line_area(e, g); // maybe separate bool for this ?
@@ -677,7 +671,6 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
   prefresh(e->textPad, e->pad_pos_y, e->pad_pos_x, 0, 4, e->screen_h - 2, e->screen_w - 1);
 
   if (e->state == OPEN && e->should_refresh) {
-    curs_set(0);
     wclear(e->popupArea);
     print_files(e);
     wrefresh(e->popupArea);
@@ -814,18 +807,18 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
   else if (c == CTRL('d')) {
     if (g->sel_start == UINT32_MAX) {
       g->sel_start = g->sel_end = g->point;
-      set_cursor_shape(2);
+      set_cursor_shape(STEADY_BLOCK);
     }
     else {
       g->sel_start = g->sel_end = UINT32_MAX;
-      set_cursor_shape(5);
+      set_cursor_shape(BLINKING_BAR);
       e->should_refresh = true;
     }
   }
 
   else if (c == CTRL('c')) {
     e->should_refresh = gb_copy(g, e->p_buffer, e->p_buffer_cap);
-    set_cursor_shape(5);
+    set_cursor_shape(BLINKING_BAR);
   }
 
   else if (c == CTRL('x')) {

@@ -639,7 +639,7 @@ void print_search_window(Editor *e) {
   box(e->popupArea, ACS_VLINE, ACS_HLINE);
   wattrset(e->popupArea, COLOR_PAIR(0));
   mvwprintw(e->popupArea, 1, 1, "%s", e->search_string);
-  
+
 }
 
 void check_pad_sizes(Editor *e, GapBuffer *g) {
@@ -652,7 +652,7 @@ void check_pad_sizes(Editor *e, GapBuffer *g) {
 }
 
 void draw_editor(Editor *e, GapBuffer *g, int c) {
-  
+
   if (e->state == TEXT && e->should_refresh) {
     check_pad_sizes(e, g);
     draw_line_area(e, g); // maybe separate bool for this ?
@@ -722,9 +722,7 @@ void check_selected(Editor *e, GapBuffer *g) {
 
 void handle_text_state(Editor *e, GapBuffer *g, int c) {
 
-  #if DEBUG_BAR
   e->refresh_bar = true;
-  #endif
   
   if (c == KEY_UP || c == CTRL('i')) {
     gb_move_up(g, 1);

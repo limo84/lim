@@ -23,8 +23,10 @@ int list_callback(const char *fpath, const struct stat *sb, int typeflag) {
   if (typeflag == FTW_F && file_count < MAX_FILES) {
     
     int path_len = strlen(fpath);
-    char buffer[PATH_MAX];
-    strcpy(buffer, fpath + cwd_len);
+    char filename[PATH_MAX];
+    char *ext;
+    strcpy(filename, fpath + cwd_len);
+    ext = strrchr(fpath, '.'); // last(?) dot
     //printf("%s\n", buffer);
     // Allocate memory for the file path and store it in the array
     file_paths[file_count] = malloc(path_len - cwd_len + 1);
@@ -32,10 +34,16 @@ int list_callback(const char *fpath, const struct stat *sb, int typeflag) {
       perror("malloc");
       return -1;
     }
-    if (strncmp(".git/", buffer, 5) != 0) {
-      strcpy(file_paths[file_count], buffer);
+    if (ext && (strcmp(ext, ".c") == 0
+        || strcmp(ext, ".h") == 0
+        || strcmp(ext, ".txt") == 0)) {
+      strcpy(file_paths[file_count], filename);
       file_count++;
     }
+    /*if (strncmp(".git/", buffer, 5) != 0) {
+      strcpy(file_paths[file_count], buffer);
+      file_count++;
+    }*/
     
   }
   return 0; // Continue walking the file tree

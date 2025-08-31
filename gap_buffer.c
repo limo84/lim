@@ -391,6 +391,18 @@ void gb_cut(GapBuffer *g, char* p_buffer) {
   //gb_copy(g, p_buffer);
 }
 
+// is this performant enough?
+void gb_get_line_col(GapBuffer *g, u32 *line, u32 *col, u32 pos) {
+  *line = 0;
+  *col = 0;
+  for (int i = 0; i < pos; i++) {
+    *col += 1;
+    if (gb_get_char(g, i) == LK_NEWLINE) {
+      *line += 1;
+      *col = 0;
+    }
+  } 
+}
 
 bool gb_search(GapBuffer *g, char *s) {
   if (!s || !s[0]) 

@@ -575,6 +575,10 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   wprintw(e->statArea, "last: %d", c);
   //wprintw(e->statArea, ", fn: %s", e->filename);
   wprintw(e->statArea, ", ed: (%d, %d)", g->line+1, g->col+1);
+  int line, col;
+  gb_get_line_col(g, &line, &col, g->point); 
+  wprintw(e->statArea, ", ed2: (%d, %d)", line+1, col+1);
+  
   wprintw(e->statArea, ", point: %d", g->point);
   //wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
   

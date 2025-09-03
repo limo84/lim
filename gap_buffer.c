@@ -84,6 +84,7 @@ typedef struct {
   u16 wanted_offset;    // the offset tried to be restored when moving up or down
   u32 sel_start;        // selection point 1
   u32 sel_end;          // selection point 2
+  u32 search_point;
 } GapBuffer;
 
 
@@ -97,6 +98,7 @@ void gb_init(GapBuffer *g, u32 init_cap) {
   g->wanted_offset = 0;
   g->sel_start = UINT32_MAX;
   g->sel_end = UINT32_MAX;
+  g->search_point = 0;
 }
 
 u32 gb_gap(GapBuffer *g) {
@@ -401,34 +403,28 @@ void gb_get_line_col(GapBuffer *g, u32 *line, u32 *col, u32 pos) {
       *line += 1;
       *col = 0;
     }
-  } 
+  }
 }
 
-bool gb_search(GapBuffer *g, char *s) {
-  if (!s || !s[0]) 
-    return false;
+bool __compare__(GapBuffer *g, u32 offset, char *needle) {
+  for (int i = 0; needle[i]; i++)
+    if (gb_get_char(g, offset + i) != needle[i]) return false;
+  return true;
+}
 
-  u8 c = s[0];
-  u32 start = 0; //todo?
-  bool found = false;
-  int i = 0;
-  for (; i < g->size; i++) {
-    if (gb_get_char(g, i) == c) {
-      found = true;
-      for (int j = 1; s[j]; j++) {
-        if (s[j] != c) {
-          found = false;
-          break;
-        }
-      }
-      if (found) {
-        g->point = i;
-      }
+bool gb_search(GapBuffer *g, char *s, u32 start, u32 *line, u32 *col) {
+  if (!s || !s[0])
+    return false;
+  if (strlen(s) <= 2)
+    return false;
+  for (; start < g->size; start++) {
+    if (__compare__(g, start, s)) {
+      gb_get_line_col(g, line, col, start);
+      return true;
     }
   }
-  
+  return false;
 }
-
 
 // TODO
 // void gb_trim_trailing()  <- trim trailing whitespaces

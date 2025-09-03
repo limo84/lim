@@ -113,6 +113,8 @@ typedef struct {
   u32 p_buffer_cap;
   char *p_buffer;
   u16 search_point;
+  u32 search_line;
+  u32 search_col;
   char *search_string;
   bool should_refresh; // if the editor should refresh
   bool refresh_bar;
@@ -188,6 +190,8 @@ void editor_init(Editor *e) {
     die ("cant alloc");
   e->search_point = 0;
   e->search_string = malloc(1024); //TODO
+  e->search_line = 0;
+  e->search_col = 0;
   if (!e->search_string) 
     die ("cant alloc search string");
   e->p_buffer[0] = 0;
@@ -708,12 +712,15 @@ void handle_open_state(Editor *e, GapBuffer *g, int c) {
 void handle_search_state(Editor *e, GapBuffer *g, int c) {
   if (c >= 32 && c <= 126) {
     e->search_string[e->search_point++] = c;
+    if (gb_search(g, e->search_string, 0, &e->search_line, &e->search_col)) {
+      die("found at (%d, %d)", e->search_line, e->search_col);
+      g->line = e->search_line;
+      g->col = e->search_col;
+    }
   }
-
   else if (c == CTRL('o') || c == LK_ENTER) {
     e->state = TEXT;
   }
-    
   e->should_refresh = true;
 }
 

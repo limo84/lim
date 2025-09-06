@@ -747,9 +747,13 @@ void handle_goto_state(Editor *e, GapBuffer *g, int c) {
   if (c >= 48 && c <= 57 && e->goto_index < GOTO_MAX - 1) {
     e->goto_string[e->goto_index++] = c;
   }
+  else if (c == KEY_BACKSPACE && e->goto_index > 0) {
+    e->goto_string[--e->goto_index] = 0;
+  }
   else if (c == CTRL('o') || c == LK_ENTER) {
     u32 line = strtol(e->goto_string, NULL, 10);
-    gb_goto_line(g, line);
+    if (line > 0 && line <= g->maxlines)
+      gb_goto_line(g, line);
     e->state = TEXT;
   }
   e->should_refresh = true;

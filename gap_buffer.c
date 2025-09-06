@@ -68,6 +68,7 @@ void setup_signals(void) {
     signal(signals[i], signal_handler);
   }
 }
+
 /******************** #GAPBUFFER *******************************/
 
 #define INIT_CAP 1000
@@ -294,7 +295,28 @@ u32 gb_move_up(GapBuffer *g, u32 amount) {
   return amount;
 }
 
+u32 gb_find_pos_by_line(GapBuffer *g, u32 line) {
+  if (line == 0)
+    return 0;
+  for (int i = 0; i < g->size;) {
+    line -= (gb_get_char(g, i++) == LK_NEWLINE) ? 1 : 0;
+    if (line == 0) return i;
+  }
+}
+
+// Takes line, starting at 1
+void gb_goto_line(GapBuffer *g, u32 line) {
+  g->point = gb_find_pos_by_line(g, line - 1);
+  g->line = line - 1;
+  g->col = 0;
+}
+
 // TODO refactor from here
+void gb_goto_position(GapBuffer *g, u8 pos, u32 *line, u32 *col) {
+  if (pos >= g->size)
+    return;
+
+}
 
 void gb_insert_char(GapBuffer *g, u8 c) {
   gb_check_increase(g, 1);
@@ -376,7 +398,7 @@ bool gb_copy(GapBuffer *g, char* p_buffer, u32 cap) {
     sel_left = MIN(g->sel_start, g->sel_end);
     sel_right = MAX(g->sel_start, g->sel_end) + 1;
   }
-  
+
   u32 len = sel_right - sel_left;
 
   gb_move_right(g, sel_right - g->point); // to move all of the string to frontbuffer

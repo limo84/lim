@@ -44,6 +44,7 @@
 #define LK_TICK 39
 #define LK_PGDN 338
 #define LK_PGUP 339
+#define GOTO_MAX 10 
 /************************ #MISC ******************************/
 
 char *get_path() {
@@ -83,7 +84,7 @@ void set_cursor_shape(int code) {
 /************************* #EDITOR ******************************/
 
 typedef enum {
-  TEXT, OPEN, SEARCH,
+  TEXT, OPEN, SEARCH, GOTO,
 } State;
 
 typedef struct {
@@ -116,6 +117,8 @@ typedef struct {
   u32 search_line;
   u32 search_col;
   char *search_string;
+  char goto_string[GOTO_MAX];
+  u8 goto_index;
   bool should_refresh; // if the editor should refresh
   bool refresh_bar;
   bool refresh_text;
@@ -194,6 +197,8 @@ void editor_init(Editor *e) {
   e->search_col = 0;
   if (!e->search_string) 
     die ("cant alloc search string");
+  e->goto_index = 0;
+  e->goto_string[0] = 0;
   e->p_buffer[0] = 0;
   e->filename = NULL;
   e->should_refresh = false;
@@ -384,7 +389,7 @@ void text_copy(Editor *e, GapBuffer *g) {
 }
 
 void text_cut(Editor *e, GapBuffer *g) {
- 
+
   if (g->sel_start == UINT32_MAX)
     return;
 
@@ -517,7 +522,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
     }
     
     // TYPES
-    char *types[] = {"u8", "u16", "u32", "int", "char", "void", "struct"};
+    char *types[] = {"u8", "u16", "u32", "int", "char", "bool", "void", "struct"};
     bool is_type = false;
     for (int i = 0; i < 7; i++) {
       if (strcmp(token, types[i]) == 0)
@@ -647,7 +652,13 @@ void print_search_window(Editor *e) {
   box(e->popupArea, ACS_VLINE, ACS_HLINE);
   wattrset(e->popupArea, COLOR_PAIR(0));
   mvwprintw(e->popupArea, 1, 1, "%s", e->search_string);
+}
 
+void print_goto_window(Editor *e) {
+  wattrset(e->popupArea, COLOR_PAIR(1));
+  box(e->popupArea, ACS_VLINE, ACS_HLINE);
+  wattrset(e->popupArea, COLOR_PAIR(0));
+  mvwprintw(e->popupArea, 1, 1, "goto: %s", e->goto_string);
 }
 
 void check_pad_sizes(Editor *e, GapBuffer *g) {
@@ -690,6 +701,13 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     print_search_window(e);
     wrefresh(e->popupArea);
   }
+
+  if (e->state == GOTO && e->should_refresh) {
+    wclear(e->popupArea);
+    wresize(e->popupArea, 3, 40);
+    print_goto_window(e);
+    wrefresh(e->popupArea);
+  }
 }
 
 // ---------------- #KEY HANDLING --------------------------------
@@ -719,6 +737,19 @@ void handle_search_state(Editor *e, GapBuffer *g, int c) {
     }
   }
   else if (c == CTRL('o') || c == LK_ENTER) {
+    e->state = TEXT;
+  }
+  e->should_refresh = true;
+}
+
+void handle_goto_state(Editor *e, GapBuffer *g, int c) {
+  /* GOTO_MAX can hold 9 numbers plus the '\0'-bit */
+  if (c >= 48 && c <= 57 && e->goto_index < GOTO_MAX - 1) {
+    e->goto_string[e->goto_index++] = c;
+  }
+  else if (c == CTRL('o') || c == LK_ENTER) {
+    u32 line = strtol(e->goto_string, NULL, 10);
+    gb_goto_line(g, line);
     e->state = TEXT;
   }
   e->should_refresh = true;
@@ -813,6 +844,13 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     e->should_refresh = true;
   }
 
+  else if (c == CTRL('g')) {
+    memset(e->goto_string, 0, GOTO_MAX);
+    e->goto_index = 0;
+    e->state = GOTO;
+    e->should_refresh = true;
+  } 
+
   else if (c == CTRL('d')) {
     if (g->sel_start == UINT32_MAX) {
       g->sel_start = g->sel_end = g->point;
@@ -882,7 +920,6 @@ int main(int argc, char **argv) {
 
   int c = -1;
   do {
-
     if (c == KEY_RESIZE) {
       getmaxyx(stdscr, e.screen_h, e.screen_w);
       //e.text_pad_w = e.screen_w - e.line_pad_w;
@@ -894,6 +931,9 @@ int main(int argc, char **argv) {
     switch (e.state) {
       case OPEN:
         handle_open_state(&e, &g, c);
+        break;
+      case GOTO:
+        handle_goto_state(&e, &g, c);
         break;
       case SEARCH:
         handle_search_state(&e, &g, c);

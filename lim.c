@@ -667,6 +667,7 @@ void check_pad_sizes(Editor *e, GapBuffer *g) {
     e->pad_h += 20;
   while (e->text_pad_w < g->maxcols + 10)
     e->text_pad_w += 10;
+  e->text_pad_w = MAX(e->text_pad_w, e->screen_w - e->line_pad_w);
   wresize(e->linePad, e->pad_h, e->line_pad_w);
   wresize(e->textPad, e->pad_h, e->text_pad_w);
 }

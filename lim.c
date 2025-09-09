@@ -45,6 +45,7 @@
 #define LK_PGDN 338
 #define LK_PGUP 339
 #define GOTO_MAX 10 
+
 /************************ #MISC ******************************/
 
 char *get_path() {
@@ -710,6 +711,23 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
   }
 }
 
+void get_functions(GapBuffer *g) {
+  u8 num = 10;
+  char **buffer = malloc(num);
+  if (!buffer)
+    die("no buffer");
+  for (u32 i = 0; i < num; i++) {
+    buffer[i] = malloc(100);
+    sprintf(buffer[i], "void my_function_%d", i);
+  }
+  endwin();
+  int j = 0;
+  for (int i = 0; i < g->size; i++) {
+    printf("%s\n", buffer[i]);
+  }
+  exit(0);
+}
+
 // ---------------- #KEY HANDLING --------------------------------
 
 void handle_open_state(Editor *e, GapBuffer *g, int c) {
@@ -948,6 +966,8 @@ int main(int argc, char **argv) {
       default:
         die("no state");
     }
+
+    //get_functions(&g);
 
     draw_editor(&e, &g, c);
     e.should_refresh = false;

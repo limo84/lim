@@ -786,67 +786,53 @@ void check_selected(Editor *e, GapBuffer *g) {
 }
 
 void handle_text_state(Editor *e, GapBuffer *g, int c) {
-
   e->refresh_bar = true;
-  
   if (c == KEY_UP || c == CTRL('i')) {
     gb_move_up(g, 1);
     check_selected(e, g);
   }
-
   else if (c == LK_DOWN || c == CTRL('k')) {
     gb_move_down(g, 1);
     check_selected(e, g);
   }
-
   else if (c == KEY_RIGHT || c == CTRL('l')) {
     gb_move_right(g, 1);
     check_selected(e, g);
   }
-
   else if (c == KEY_LEFT || c == CTRL('j')) {
     gb_move_left(g, 1);
     check_selected(e, g);
   }
-
   else if (c == LK_PGDN) {
     gb_move_down(g, 50);
   }
-  
   else if (c == LK_PGUP) {
     gb_move_up(g, 50);
   }
-  
   else if (c == KEY_BACKSPACE || c == CTRL('u')) {
     text_backspace(e, g);
     e->dirty = true;
   }
-
   else if (c == CTRL('s')) {
     gb_write_to_file(g, e->filename);
     e->dirty = false;
     e->should_refresh = true;
   }
- 
   else if (c == CTRL('o') || c == LK_ENTER) {
     text_enter(e, g);
     e->dirty = true;
   }
-
   else if (c == CTRL('p')) {
     gb_tab(g, 2);
     e->should_refresh = true;
     e->dirty = true;
   }
-  
   else if (c == KEY_HOME) {
     gb_home(g);
   }
-
   else if (c == KEY_END) {
     gb_end(g);
   }
-
   else if (c >= 32 && c <= 126) {
     gb_insert_char(g, c);
     g->col += 1;
@@ -854,26 +840,22 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
     e->should_refresh = true;
     e->dirty = true;
   }
-
   else if (c == CTRL('r')) {
     e->state = OPEN;
     e->should_refresh = true;
   }
-
   else if (c == CTRL('f')) {
     memset(e->search_string, 0, 1024);
     e->search_point = 0;
     e->state = SEARCH;
     e->should_refresh = true;
   }
-
   else if (c == CTRL('g')) {
     memset(e->goto_string, 0, GOTO_MAX);
     e->goto_index = 0;
     e->state = GOTO;
     e->should_refresh = true;
   } 
-
   else if (c == CTRL('d')) {
     if (g->sel_start == UINT32_MAX) {
       g->sel_start = g->sel_end = g->point;
@@ -885,21 +867,16 @@ void handle_text_state(Editor *e, GapBuffer *g, int c) {
       e->should_refresh = true;
     }
   }
-
   else if (c == CTRL('c')) {
     e->should_refresh = gb_copy(g, e->p_buffer, e->p_buffer_cap);
     set_cursor_shape(BLINKING_BAR);
   }
-
   else if (c == CTRL('x')) {
     //text_cut(e, g);
   }
-
   else if (c == CTRL('v')) {
     text_paste(e, g);
   }
-  // else if (c == 127) {
-  // }
 }
 
 /************************** #MAIN ********************************/

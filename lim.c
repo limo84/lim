@@ -693,6 +693,7 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
 
   if (e->state == OPEN && e->should_refresh) {
     wclear(e->popupArea);
+    wresize(e->popupArea, 40, 80);
     print_files(e);
     wrefresh(e->popupArea);
   }

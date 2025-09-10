@@ -586,7 +586,7 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   //wprintw(e->statArea, ", fn: %s", e->filename);
   wprintw(e->statArea, ", ed: (%d, %d)", g->line+1, g->col+1);
   int line, col;
-  gb_get_line_col(g, &line, &col, g->point); 
+  gb_get_line_col(g, &line, &col, g->point);
   wprintw(e->statArea, ", ed2: (%d, %d)", line+1, col+1);
   
   wprintw(e->statArea, ", point: %d", g->point);
@@ -732,7 +732,7 @@ void get_functions(GapBuffer *g) {
 
 // ---------------- #KEY HANDLING --------------------------------
 
-void handle_open_state(Editor *e, GapBuffer *g, int c) {
+void handle_open_state_keys(Editor *e, GapBuffer *g, int c) {
   e->should_refresh = true;
   if (c == KEY_UP || c == CTRL('i'))
     open_move_up(e);
@@ -747,7 +747,7 @@ void handle_open_state(Editor *e, GapBuffer *g, int c) {
   }
 }
 
-void handle_search_state(Editor *e, GapBuffer *g, int c) {
+void handle_search_state_keys(Editor *e, GapBuffer *g, int c) {
   if (c >= 32 && c <= 126) {
     e->search_string[e->search_point++] = c;
     if (gb_search(g, e->search_string, 0, &e->search_line, &e->search_col)) {
@@ -762,7 +762,7 @@ void handle_search_state(Editor *e, GapBuffer *g, int c) {
   e->should_refresh = true;
 }
 
-void handle_goto_state(Editor *e, GapBuffer *g, int c) {
+void handle_goto_state_keys(Editor *e, GapBuffer *g, int c) {
   /* GOTO_MAX can hold 9 numbers plus the '\0'-bit */
   if (c >= 48 && c <= 57 && e->goto_index < GOTO_MAX - 1) {
     e->goto_string[e->goto_index++] = c;
@@ -786,7 +786,7 @@ void check_selected(Editor *e, GapBuffer *g) {
   }
 }
 
-void handle_text_state(Editor *e, GapBuffer *g, int c) {
+void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
   e->refresh_bar = true;
   if (c == KEY_UP || c == CTRL('i')) {
     gb_move_up(g, 1);
@@ -931,16 +931,16 @@ int main(int argc, char **argv) {
 
     switch (e.state) {
       case OPEN:
-        handle_open_state(&e, &g, c);
+        handle_open_state_keys(&e, &g, c);
         break;
       case GOTO:
-        handle_goto_state(&e, &g, c);
+        handle_goto_state_keys(&e, &g, c);
         break;
       case SEARCH:
-        handle_search_state(&e, &g, c);
+        handle_search_state_keys(&e, &g, c);
         break;
       case TEXT:
-        handle_text_state(&e, &g, c);
+        handle_text_state_keys(&e, &g, c);
         break;
       default:
         die("no state");

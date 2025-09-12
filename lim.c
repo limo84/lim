@@ -1,39 +1,3 @@
-// TODO
-
-// X = DONE, C = CONFIGURABLE
-
-// [X] BUG: increase buffer when necessary
-// [X] BUG: call endwin() on signals
-// [X] BUG: bug when line_width is bigger than screen_w <- scroll pad on x axis
-// [X] BUG: increase pad_size_w when necessary
-// [X] BUG: cant go to last line
-// [ ] BUG: screen resize; refresh bar
-// [ ] BUG: increasing font size does not trigger KEY_RESIZE (?)
-// [ ] BUG: Save indicator not shown in PROD
-
-// [X] CORE: open directories (by "lim <path>" or simply "lim" [like "lim ."])
-// [X] CORE: select text
-// [X] CORE: keep offset when moving up/down
-// [X] CORE: indentation key
-// [X] CORE: copy / paste inside lim
-// [X] CORE: copy / paste whole line
-// [ ] CORE: cut / paste (+  whole line)
-// [ ] CORE: change cursor shape
-// [ ] CORE: trim unnecessary whitespace
-
-// [C] FEAT: save file before closing lim or opening another file
-// [X] FEAT: light mode
-// [ ] FEAT: UTF-8 support
-// [ ] FEAT: copy / paste from outside of vim
-// [ ] FEAT: fuzzy find in open dialog
-// [ ] FEAT: find in file(s)
-// [ ] FEAT: undo
-// [ ] FEAT: second editor
-// [ ] FEAT: use libtermkey or anyting better for keys (resize ?)
-// [d] FEAT: Chapters
-
-// [ ] PERFORMANCE: e.g. just refresh single line in some cases, ...
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
@@ -240,17 +204,10 @@ void editor_init(Editor *e) {
   if (!e->popupArea)
     die("Could not init popupArea");
   box(e->popupArea, '|', '-');
-  //keypad(e->popupArea, true);
-  //wbkgd(e->popupArea, COLOR_PAIR(2));
-  
+
   // INIT STAT_AREA
   e->statArea = newwin(1, e->screen_w, 0, 0);
   mvwin(e->statArea, e->screen_h - 1, 0);
-  //wattrset(e->statArea, COLOR_PAIR(4));
-  //
-  //mode->type = 1;
-  //mode->keyword = 2;
-  //mode->comment = 3;
 }
 
 void ncurses_init() {
@@ -320,31 +277,25 @@ void open_open_file(Editor *e, GapBuffer *g) {
 // ---------------- #TEXT FUNCTIONS -----------------------------
 
 void update_cursor(Editor *e, GapBuffer *g) {
-
   u16 text_area_h = text_area_height(e);
   u16 text_area_w = text_area_width(e);
   i32 diff = 0;
-
   // DOWN
   if (g->line > e->pad_pos_y + text_area_h - 3)
     e->pad_pos_y = g->line - text_area_h + 3;
-  
   // UP
   else if (g->line < e->pad_pos_y + 2) {
     diff = g->line - 2;
     e->pad_pos_y = MAX(diff, 0);
   }
-  
   // RIGHT X
   if (g->col > e->pad_pos_x + text_area_w - 5)
     e->pad_pos_x = g->col - text_area_w + 5;
-  
   // LEFT
   else if (g->col < e->pad_pos_x + 5) {
     diff = g->col - 5;
     e->pad_pos_x = MAX(0, diff);
   }
-
   wmove(e->textPad, g->line, g->col);
 }
 
@@ -361,18 +312,14 @@ void text_enter(Editor *e, GapBuffer *g) {
 void text_backspace(Editor *e, GapBuffer *g) {
   u32 maxlines = g->maxlines;
   i32 amount = 1;
-
   if (g->sel_start != UINT32_MAX) {
     amount = g->sel_end - g->sel_start;
     amount = ABS(amount);
-
     if (g->sel_end < g->sel_start)
       gb_move_right(g, amount);
-
     e->should_refresh = true;
     gb_clear_selection(g);
   }
-
   e->should_refresh = gb_backspace(g, amount);
 }
 
@@ -472,7 +419,7 @@ void print_c_file(Editor *e, GapBuffer *g) {
       }
       continue;
     }
-    
+
     if (c == '/' && (i + 1) < g->size) {
       char d = gb_get_char(g, i + 1);
       if (d  == '/') { 
@@ -713,18 +660,24 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
   }
 }
 
+// UNFINISHED
 void get_functions(GapBuffer *g) {
-  u8 num = 10;
+  u8 num = 100;
   char **buffer = malloc(num);
   if (!buffer)
     die("no buffer");
+  
   for (u32 i = 0; i < num; i++) {
     buffer[i] = malloc(100);
-    sprintf(buffer[i], "void my_function_%d", i);
+    //sprintf(buffer[i], "void my_function_%d", i);
+  }
+
+  for (u32 i = 0; i < g->size; i++) {
+    
   }
   endwin();
   int j = 0;
-  for (int i = 0; i < g->size; i++) {
+  for (int i = 0; i < num; i++) {
     printf("%s\n", buffer[i]);
   }
   exit(0);
@@ -897,10 +850,10 @@ int main(int argc, char **argv) {
   get_file_system(e.path, &e.files, &e.files_len); 
   
   for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "-l") == 0) {
+    /* if (strcmp(argv[i], "-l") == 0) {
       set_light_mode(&e);
       continue;
-    }
+    } */
     int len = MIN(strlen(argv[1]), 100);
     e.filename = calloc(len, 1);
     if (!e.filename)
@@ -928,7 +881,6 @@ int main(int argc, char **argv) {
       e.should_refresh = true;
       e.refresh_bar = true;
     }
-
     switch (e.state) {
       case OPEN:
         handle_open_state_keys(&e, &g, c);
@@ -945,16 +897,11 @@ int main(int argc, char **argv) {
       default:
         die("no state");
     }
-
     //get_functions(&g);
-
     draw_editor(&e, &g, c);
     e.should_refresh = false;
     e.refresh_bar = false;
     c = wgetch(e.textPad);
   } while (c != CTRL('q'));
-  
-  //clear();
-  //endwin();
   return 0;
 }

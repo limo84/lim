@@ -376,6 +376,8 @@ bool is_char_in(char c, char f, ...) {
 void print_c_file(Editor *e, GapBuffer *g) {
   
   char *token = malloc(1024); // TODO errors, size
+  u32 sel_1 = MIN(g->sel_start, g->sel_end);
+  u32 sel_2 = MAX(g->sel_start, g->sel_end);
 
   // TODO Better tokenizing
   // TODO Numbers teal
@@ -385,12 +387,11 @@ void print_c_file(Editor *e, GapBuffer *g) {
   bool is_line_comment = false;
   
   for (u32 i = 0; i < g->size; i++) {
-    
     char c = gb_get_char(g, i);
-    bool is_selected = false;
-
-    if (i >= g->sel_start && i < g->sel_end) {
-      is_selected = true;
+    if (i >= sel_1 && i < sel_2) {
+      wattrset(e->textPad, e->mode.selected);
+      waddch(e->textPad, c);
+      continue;
     }
 
     if (is_line_comment) {

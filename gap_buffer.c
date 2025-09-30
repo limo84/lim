@@ -68,6 +68,7 @@ void setup_signals(void) {
     signal(signals[i], signal_handler);
   }
 }
+
 /******************** #GAPBUFFER *******************************/
 
 #define INIT_CAP 1000
@@ -84,6 +85,7 @@ typedef struct {
   u16 wanted_offset;    // the offset tried to be restored when moving up or down
   u32 sel_start;        // selection point 1
   u32 sel_end;          // selection point 2
+  u32 search_point;
 } GapBuffer;
 
 
@@ -97,6 +99,7 @@ void gb_init(GapBuffer *g, u32 init_cap) {
   g->wanted_offset = 0;
   g->sel_start = UINT32_MAX;
   g->sel_end = UINT32_MAX;
+  g->search_point = 0;
 }
 
 u32 gb_gap(GapBuffer *g) {
@@ -292,7 +295,28 @@ u32 gb_move_up(GapBuffer *g, u32 amount) {
   return amount;
 }
 
+u32 gb_find_pos_by_line(GapBuffer *g, u32 line) {
+  if (line == 0)
+    return 0;
+  for (int i = 0; i < g->size;) {
+    line -= (gb_get_char(g, i++) == LK_NEWLINE) ? 1 : 0;
+    if (line == 0) return i;
+  }
+}
+
+// Takes line, starting at 1
+void gb_goto_line(GapBuffer *g, u32 line) {
+  g->point = gb_find_pos_by_line(g, line - 1);
+  g->line = line - 1;
+  g->col = 0;
+}
+
 // TODO refactor from here
+void gb_goto_position(GapBuffer *g, u8 pos, u32 *line, u32 *col) {
+  if (pos >= g->size)
+    return;
+
+}
 
 void gb_insert_char(GapBuffer *g, u8 c) {
   gb_check_increase(g, 1);
@@ -374,7 +398,7 @@ bool gb_copy(GapBuffer *g, char* p_buffer, u32 cap) {
     sel_left = MIN(g->sel_start, g->sel_end);
     sel_right = MAX(g->sel_start, g->sel_end) + 1;
   }
-  
+
   u32 len = sel_right - sel_left;
 
   gb_move_right(g, sel_right - g->point); // to move all of the string to frontbuffer
@@ -391,32 +415,38 @@ void gb_cut(GapBuffer *g, char* p_buffer) {
   //gb_copy(g, p_buffer);
 }
 
-
-bool gb_search(GapBuffer *g, char *s) {
-  if (!s || !s[0]) 
-    return false;
-
-  u8 c = s[0];
-  u32 start = 0; //todo?
-  bool found = false;
-  int i = 0;
-  for (; i < g->size; i++) {
-    if (gb_get_char(g, i) == c) {
-      found = true;
-      for (int j = 1; s[j]; j++) {
-        if (s[j] != c) {
-          found = false;
-          break;
-        }
-      }
-      if (found) {
-        g->point = i;
-      }
+// is this performant enough?
+void gb_get_line_col(GapBuffer *g, u32 *line, u32 *col, u32 pos) {
+  *line = 0;
+  *col = 0;
+  for (int i = 0; i < pos; i++) {
+    *col += 1;
+    if (gb_get_char(g, i) == LK_NEWLINE) {
+      *line += 1;
+      *col = 0;
     }
   }
-  
 }
 
+bool __compare__(GapBuffer *g, u32 offset, char *needle) {
+  for (int i = 0; needle[i]; i++)
+    if (gb_get_char(g, offset + i) != needle[i]) return false;
+  return true;
+}
+
+bool gb_search(GapBuffer *g, char *s, u32 start, u32 *line, u32 *col) {
+  if (!s || !s[0])
+    return false;
+  if (strlen(s) <= 2)
+    return false;
+  for (; start < g->size; start++) {
+    if (__compare__(g, start, s)) {
+      gb_get_line_col(g, line, col, start);
+      return true;
+    }
+  }
+  return false;
+}
 
 // TODO
 // void gb_trim_trailing()  <- trim trailing whitespaces

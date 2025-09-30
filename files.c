@@ -7,6 +7,8 @@
 #include <string.h>
 #include <libgen.h>
 #include <unistd.h>
+#include <stdbool.h>
+#include <stdarg.h>
 
 #define MAX_FILES 1000 // Maximum number of files to store
 #define PATH_MAX 4096
@@ -18,16 +20,28 @@ int file_count = 0;
 char cwd[PATH_MAX];
 uint16_t cwd_len = 0;
 
+// must have NULL as last parameter
+bool __compare_end_(char buffer[PATH_MAX], const char *comp, ...) {
+  int buffer_len = strlen(buffer);
+  va_list args;
+  const char *s;
+  va_start(args, comp);
+  for (s = comp; s!= NULL; s = va_arg(args, const char *)) {
+    int len = strlen(s);
+    if (strncmp(s, buffer + buffer_len - len, len) == 0)
+      return true;
+  }
+  return false;
+}
+
 // Callback function to add file paths to the array
 int list_callback(const char *fpath, const struct stat *sb, int typeflag) {
   if (typeflag == FTW_F && file_count < MAX_FILES) {
-    
     int path_len = strlen(fpath);
     char filename[PATH_MAX];
     char *ext;
     strcpy(filename, fpath + cwd_len);
-    ext = strrchr(fpath, '.'); // last(?) dot
-    //printf("%s\n", buffer);
+    ext = strrchr(fpath, '.');
     // Allocate memory for the file path and store it in the array
     file_paths[file_count] = malloc(path_len - cwd_len + 1);
     if (file_paths[file_count] == NULL) {
@@ -44,7 +58,6 @@ int list_callback(const char *fpath, const struct stat *sb, int typeflag) {
       strcpy(file_paths[file_count], buffer);
       file_count++;
     }*/
-    
   }
   return 0; // Continue walking the file tree
 }

@@ -11,4 +11,5 @@ Type ```make``` to build and run
 - Home and End do what they are supposed to
 - Ctrl + d selects from cursor
 - Ctrl + [x, c, v] to cut, copy and paste text (unfinished)
+- Ctrl + g lets you go to lines
 - If anything goes wrong ```reset``` restores your terminal (even if you cant't see that you typed it)

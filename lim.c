@@ -79,8 +79,8 @@ typedef struct {
   u32 p_buffer_cap;
   char *p_buffer;
   u16 search_point;
-  u32 search_line;
-  u32 search_col;
+  u16 search_line;
+  u16 search_col;
   char *search_string;
   char goto_string[GOTO_MAX];
   u8 goto_index;
@@ -320,7 +320,7 @@ void text_backspace(Editor *e, GapBuffer *g) {
     e->should_refresh = true;
     gb_clear_selection(g);
   }
-  e->should_refresh = gb_backspace(g, amount);
+  //e->should_refresh = gb_backspace(g, amount);
 }
 
 void text_copy(Editor *e, GapBuffer *g) {
@@ -343,7 +343,7 @@ void text_cut(Editor *e, GapBuffer *g) {
 
   // TODO MAKE SURE THAT P_BUFFER IS BIG ENOUGH!!
   gb_copy(g, e->p_buffer, e->p_buffer_cap);
-  gb_backspace(g, 0);
+  gb_backspace(g);
 
   gb_clear_selection(g);
   e->should_refresh = true;
@@ -533,7 +533,7 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   wprintw(e->statArea, "last: %d", c);
   //wprintw(e->statArea, ", fn: %s", e->filename);
   wprintw(e->statArea, ", ed: (%d, %d)", g->line+1, g->col+1);
-  int line, col;
+  u16 line, col;
   gb_get_line_col(g, &line, &col, g->point);
   wprintw(e->statArea, ", ed2: (%d, %d)", line+1, col+1);
   
@@ -765,7 +765,11 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
     gb_move_up(g, 50);
   }
   else if (c == KEY_BACKSPACE || c == CTRL('u')) {
-    text_backspace(e, g);
+    //text_backspace(e, g);
+    gb_backspace(g);
+    gb_clear_selection(g);
+    e->should_refresh = true;
+    set_cursor_shape(BLINKING_BAR);
     e->dirty = true;
   }
   else if (c == CTRL('s')) {
@@ -823,11 +827,16 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
     }
   }
   else if (c == CTRL('c')) {
-    e->should_refresh = gb_copy(g, e->p_buffer, e->p_buffer_cap);
+    e->should_refresh = true;
+    gb_copy(g, e->p_buffer, e->p_buffer_cap);
+    gb_clear_selection(g);
     set_cursor_shape(BLINKING_BAR);
   }
   else if (c == CTRL('x')) {
-    //text_cut(e, g);
+    e->should_refresh = true;
+    gb_cut(g, e->p_buffer, e->p_buffer_cap);
+    gb_clear_selection(g);
+    set_cursor_shape(BLINKING_BAR);
   }
   else if (c == CTRL('v')) {
     text_paste(e, g);

@@ -321,7 +321,6 @@ void gb_goto_line(GapBuffer *g, u32 line) {
 void gb_goto_position(GapBuffer *g, u8 pos, u32 *line, u32 *col) {
   if (pos >= g->size)
     return;
-
 }
 
 void gb_insert_char(GapBuffer *g, u8 c) {
@@ -363,10 +362,14 @@ void gb_end(GapBuffer *g) {
 u32 gb_backspace(GapBuffer *g) {
   u32 amount = MIN(1, g->point);
   if (gb_has_selection(g)) {
-    u32 sel_left = MIN(g->sel_start, g->sel_end);
-    u32 sel_right = MAX(g->sel_start, g->sel_end);
-    amount = sel_right - sel_left + 1;
-    g->point = MIN(g->point + 1, g->size);
+    u32 sel_left = g->sel_start;
+    u32 sel_right = g->sel_end + 1;
+    if (g->sel_start > g->sel_end) {
+      sel_left = g->sel_end;
+      sel_right = g->sel_start;
+    }
+    amount = sel_right - sel_left;
+    g->point = MIN(sel_right, g->size);
   }
   g->point -= amount;
   gb_jump(g);

@@ -7,12 +7,16 @@
 #include <unistd.h>
 #include <signal.h>
 
+#define LSH
+#include "lsh_logger.h"
+
 #if 1 // for later implementation of editors without ncurses
 #include <ncurses.h>
 #endif
 
 #include "files.h"
 
+#define LOG_DEBUG(fmt, ...) logger_log(fmt __VA_OPT__(,) __VA_ARGS__)
 #define ASSERT(c) assert(c)
 #define MY_ASSERT(c, s, p) if (!(c)) { printf(s, p); exit(1); } 
 
@@ -105,7 +109,7 @@ void gb_init(GapBuffer *g, u32 init_cap) {
 // ********************* #DEFINITIONS **************************
 
 void gb_get_line_col(GapBuffer *g, u16 *line, u16 *col, u32 pos);
-
+void gb_get_point(GapBuffer *g, u16 line, u16 col);
 // ********************* #MOVE **************************
 
 u32 gb_gap(GapBuffer *g) {
@@ -433,6 +437,11 @@ void gb_get_line_col(GapBuffer *g, u16 *line, u16 *col, u32 pos) {
   }
 }
 
+void gb_get_point(GapBuffer *g, u16 line, u16 col) {
+  g->point = 0;
+  //while (
+}
+
 bool __compare__(GapBuffer *g, u32 offset, char *needle) {
   for (int i = 0; needle[i]; i++)
     if (gb_get_char(g, offset + i) != needle[i]) return false;
@@ -456,6 +465,65 @@ bool gb_search(GapBuffer *g, char *s, u32 start, u16 *line, u16 *col) {
 // TODO
 // void gb_trim_trailing()  <- trim trailing whitespaces
 
+#define LINE_SIZE 1024
+
+FILE* __get_recently_opened(char *attr) {
+  char config_path[LINE_SIZE];
+  if (getenv("XDG_CONFIG_HOME") != NULL)
+    sprintf(config_path, "%s/%s", getenv("XDG_CONFIG_HOME"), "lim/recent");
+  else 
+    die("XDG_CONFIG_HOME not set");
+  return fopen(config_path, attr);
+}
+
+void gb_store_position(GapBuffer *g, char *path, char *current_file) {
+  FILE *file = __get_recently_opened("r");
+  char *buffer = NULL;
+  char full_path[LINE_SIZE];
+  snprintf(full_path, LINE_SIZE, "%s/%s", path, current_file);
+  int len_path = strlen(full_path);
+  if (file) {
+    if (fseek(file, 0, SEEK_END) != 0)
+      die("fseek SEEK_END");
+    u32 size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    buffer = malloc(size);
+    if (!buffer)
+      die("can't create buffer");
+    buffer[0] = 0;
+    char line[LINE_SIZE];
+    while (fgets(line, LINE_SIZE, file)) {
+      if (strncmp(full_path, line, len_path) != 0)
+        sprintf(buffer, "%s%s", buffer, line);
+    }
+    fclose(file);
+  }
+  // --- WRITE FILE ---------------
+  file = __get_recently_opened("w");
+  fprintf(file, "%s:%d\n%s", full_path, g->line, buffer ? buffer : "");
+  fclose(file);
+  free(buffer);
+}
+
+void gb_restore_position(GapBuffer *g, char *path, char *current_file) {
+  FILE *file = __get_recently_opened("r");
+  if (!file) {
+    return;
+  }
+  char filename[LINE_SIZE];
+  snprintf(filename, LINE_SIZE, "%s/%s", path, current_file);
+  u8 len = strlen(filename);
+  char line[LINE_SIZE];
+  while (fgets(line, LINE_SIZE, file)) {
+    if (strncmp(line, filename, len) == 0) {
+      u16 l = atoi(line + len + 1);
+      gb_goto_line(g, l + 1);
+      break;
+    }
+  }
+  fclose(file);
+}
+
 // TODO refactor and write in 2 steps (front, back)
 void gb_write_to_file(GapBuffer *g, char* filename) {
   if (filename == NULL)
@@ -473,8 +541,7 @@ void gb_write_to_file(GapBuffer *g, char* filename) {
   fclose(file);
 }
 
-int gb_read_file(GapBuffer *g, char* filename) {
-
+int gb_read_file(GapBuffer *g, char *path, char *filename) {
   g->size = 0;
   g->front = 0;
   g->point = 0;
@@ -488,7 +555,7 @@ int gb_read_file(GapBuffer *g, char* filename) {
   if (!file) die("File not found\n");
   if (fseek(file, 0, SEEK_END) != 0)
     die("fseek SEEK_END");
- 
+
   u32 size = ftell(file);
   fseek(file, 0, SEEK_SET);
 

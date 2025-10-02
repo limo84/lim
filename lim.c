@@ -913,5 +913,6 @@ int main(int argc, char **argv) {
     e.refresh_bar = false;
     c = wgetch(e.textPad);
   } while (c != CTRL('q'));
+  gb_store_position(&g, e.filename);
   return 0;
 }

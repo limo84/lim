@@ -456,6 +456,16 @@ bool gb_search(GapBuffer *g, char *s, u32 start, u16 *line, u16 *col) {
 // TODO
 // void gb_trim_trailing()  <- trim trailing whitespaces
 
+void gb_store_position(GapBuffer *g, char *full_path) {
+  char config_file[] = "/home/lukas/.config/lim/recent.conf";
+  FILE *file = fopen(config_file, "a");
+  if (!file) {
+    die("[gap_buffer.c] Can't store position.");
+  }
+  fprintf(file, "%s:%d\n", full_path, g->line);
+  fclose(file);
+}
+
 // TODO refactor and write in 2 steps (front, back)
 void gb_write_to_file(GapBuffer *g, char* filename) {
   if (filename == NULL)
@@ -488,7 +498,7 @@ int gb_read_file(GapBuffer *g, char* filename) {
   if (!file) die("File not found\n");
   if (fseek(file, 0, SEEK_END) != 0)
     die("fseek SEEK_END");
- 
+
   u32 size = ftell(file);
   fseek(file, 0, SEEK_SET);
 

@@ -261,16 +261,18 @@ void open_move_down(Editor *e) {
 }
 
 void open_open_file(Editor *e, GapBuffer *g) {
+  gb_store_position(g, e->path, e->filename);
   free(e->filename);
   // TODO unsafe?
   int len = strlen(e->files[e->chosen_file]);
   e->filename = malloc(len + 1);
   strcpy(e->filename, e->files[e->chosen_file]);
-  gb_read_file(g, e->filename);
   g->line = 0;
   e->pad_pos_y = 0;
   e->state = TEXT;
   e->refresh_bar = true;
+  gb_read_file(g, e->path, e->filename);
+  gb_restore_position(g, e->path, e->filename);
   //draw_line_area(e, g);
 }
 
@@ -846,7 +848,8 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
 /************************** #MAIN ********************************/
 
 int main(int argc, char **argv) {
-
+  
+  logger_open_logfile("./logfile.log");
   ncurses_init();
   
   Editor e;
@@ -873,7 +876,8 @@ int main(int argc, char **argv) {
     if (is_directory(e.filename)) {
       e.state = OPEN;
     } else {
-      gb_read_file(&g, e.filename);
+      gb_read_file(&g, e.path, e.filename);
+      gb_restore_position(&g, e.path, e.filename);
       e.should_refresh = true;
     }
   } 
@@ -913,5 +917,6 @@ int main(int argc, char **argv) {
     e.refresh_bar = false;
     c = wgetch(e.textPad);
   } while (c != CTRL('q'));
+  gb_store_position(&g, e.path, e.filename);
   return 0;
 }

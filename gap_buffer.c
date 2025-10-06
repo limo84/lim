@@ -174,7 +174,6 @@ void gb_check_increase(GapBuffer *g, u32 amount) {
 void gb_count_limits(GapBuffer *g) {
   g->maxcols = 20;
   g->maxlines = 1;
-
   u16 cols = 0;
   for (u32 i = 0; i < g->size; i++) {
     cols++;
@@ -239,11 +238,9 @@ u32 gb_move_right(GapBuffer *g, u32 amount) {
   return amount;
 }
 
-u32 gb_move_down(GapBuffer *g, u32 amount) {
-  
+u32 gb_move_down(GapBuffer *g, u32 amount) {  
   if (g->line + amount >= g->maxlines - 1)
     amount = g->maxlines - g->line - 1; 
-
   for (u32 i = 0; i < amount; i++) {
     // move to start of next line
     g->point += gb_width_right(g) + 1;
@@ -258,10 +255,8 @@ u32 gb_move_down(GapBuffer *g, u32 amount) {
   return amount;
 }
 
-u32 gb_move_up(GapBuffer *g, u32 amount) {
-  
-  amount = MIN(g->line, amount);
-  
+u32 gb_move_up(GapBuffer *g, u32 amount) {  
+  amount = MIN(g->line, amount);  
   for (u32 i = 0; i < amount; i++) {
     // move to end of previous line
     g->point -= (gb_width_left(g) + 1);
@@ -278,18 +273,19 @@ u32 gb_move_up(GapBuffer *g, u32 amount) {
   return amount;
 }
 
-u32 gb_find_pos_by_line(GapBuffer *g, u32 line) {
+u32 gb_find_point_by_line(GapBuffer *g, u32 line) {
   if (line == 0)
     return 0;
   for (int i = 0; i < g->size;) {
     line -= (gb_get_char(g, i++) == LK_NEWLINE) ? 1 : 0;
-    if (line == 0) return i;
+    if (line == 0)
+      return i;
   }
 }
 
 // Takes line, starting at 1
 void gb_goto_line(GapBuffer *g, u32 line) {
-  g->point = gb_find_pos_by_line(g, line - 1);
+  g->point = gb_find_point_by_line(g, line - 1);
   g->line = line - 1;
   g->col = 0;
 }

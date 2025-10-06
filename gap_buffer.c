@@ -224,44 +224,17 @@ u16 gb_width_right(GapBuffer *g) {
 // --------------- MOVE -----------------------------
 
 u32 gb_move_left(GapBuffer *g, u32 amount) {
-  
-  //if (g->point == 0) {
-  //  return 0;
-  //}
-
-  if (g->point < amount) {
+  if (g->point < amount)
     amount = g->point;
-  }
-
-  for (int i = 0; i < amount; i++) {
-    g->point--;
-    g->col--;
-    if (gb_get_current(g) == LK_NEWLINE) {
-      g->line--;
-      g->col = gb_width_left(g);
-    }
-  }
+  gb_get_line_col(g, &g->line, &g->col, (g->point -= amount)); 
   g->wanted_offset = g->col;
   return amount;
 }
 
 u32 gb_move_right(GapBuffer *g, u32 amount) {
-  //if (g->point == g->size - 1) {
-  //  return 0;
-  //}
   if (g->point + amount >= g->size)
     amount = g->size - g->point;
-
-  for (int i = 0; i < amount; i++) {
-    if (gb_get_current(g) == LK_NEWLINE) {
-      g->line++;
-      g->col = 0;
-    }
-    else {
-      g->col++;
-    }
-    g->point++;
-  }
+  gb_get_line_col(g, &g->line, &g->col, (g->point += amount)); 
   g->wanted_offset = g->col;
   return amount;
 }
@@ -349,17 +322,6 @@ void gb_tab(GapBuffer *g, u8 tabsize) {
   }
   g->col += tabsize;
   g->maxcols = MAX(g->maxcols, g->col);
-}
-
-void gb_home(GapBuffer *g) {
-  g->point -= gb_width_left(g);
-  g->col = 0;
-}
-
-void gb_end(GapBuffer *g) {
-  u16 width_right = gb_width_right(g);
-  g->col += width_right;
-  g->point += width_right;
 }
 
 // TODO

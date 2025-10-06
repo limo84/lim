@@ -707,7 +707,7 @@ void handle_search_state_keys(Editor *e, GapBuffer *g, int c) {
   if (c >= 32 && c <= 126) {
     e->search_string[e->search_point++] = c;
     if (gb_search(g, e->search_string, 0, &e->search_line, &e->search_col)) {
-      die("found at (%d, %d)", e->search_line, e->search_col);
+      //die("found at (%d, %d)", e->search_line, e->search_col);
       g->line = e->search_line;
       g->col = e->search_col;
     }
@@ -789,10 +789,10 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
     e->dirty = true;
   }
   else if (c == KEY_HOME) {
-    gb_home(g);
+    gb_move_left(g, gb_width_left(g));
   }
   else if (c == KEY_END) {
-    gb_end(g);
+    gb_move_right(g, gb_width_right(g));
   }
   else if (c >= 32 && c <= 126) {
     gb_insert_char(g, c);

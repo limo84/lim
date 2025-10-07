@@ -358,8 +358,6 @@ void gb_copy(GapBuffer *g, char* p_buffer, u32 cap) {
   gb_jump(g);
   strncpy(p_buffer, g->buf + sel_left, len);
   p_buffer[len + 1] = 0;
-  //gb_clear_selection(g);
-  //return true;
 }
 
 void gb_cut(GapBuffer *g, char* p_buffer, u32 cap) {
@@ -393,11 +391,6 @@ void gb_get_line_col(GapBuffer *g, u16 *line, u16 *col, u32 pos) {
       *col = 0;
     }
   }
-}
-
-void gb_get_point(GapBuffer *g, u16 line, u16 col) {
-  g->point = 0;
-  //while (
 }
 
 bool __compare__(GapBuffer *g, u32 offset, char *needle) {
@@ -507,16 +500,13 @@ int gb_read_file(GapBuffer *g, char *path, char *filename) {
   g->col = 0;
   g->maxcols = 1;
   g->wanted_offset = 0;
-  g->maxlines = 1;
- 
+  g->maxlines = 1; 
   FILE *file = fopen(filename, "r");
   if (!file) die("File not found\n");
   if (fseek(file, 0, SEEK_END) != 0)
     die("fseek SEEK_END");
-
   u32 size = ftell(file);
   fseek(file, 0, SEEK_SET);
-
   gb_check_increase(g, size);
   fread(g->buf, sizeof(char), size, file);
   g->size = size;

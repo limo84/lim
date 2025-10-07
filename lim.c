@@ -325,32 +325,6 @@ void text_backspace(Editor *e, GapBuffer *g) {
   //e->should_refresh = gb_backspace(g, amount);
 }
 
-void text_copy(Editor *e, GapBuffer *g) {
-  
-  if (!gb_has_selection(g)) {
-    
-  }
-  
-  // TODO MAKE SURE THAT P_BUFFER IS BIG ENOUGH!!
-  //gb_copy(g, e->p_buffer);
-  
-  //gb_clear_selection(g);
-  //e->should_refresh = true;
-}
-
-void text_cut(Editor *e, GapBuffer *g) {
-
-  if (g->sel_start == UINT32_MAX)
-    return;
-
-  // TODO MAKE SURE THAT P_BUFFER IS BIG ENOUGH!!
-  gb_copy(g, e->p_buffer, e->p_buffer_cap);
-  gb_backspace(g);
-
-  gb_clear_selection(g);
-  e->should_refresh = true;
-}
-
 void text_paste(Editor *e, GapBuffer *g) {
   gb_jump(g);
   u32 len = strlen(e->p_buffer);

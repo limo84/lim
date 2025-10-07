@@ -301,16 +301,6 @@ void update_cursor(Editor *e, GapBuffer *g) {
   wmove(e->textPad, g->line, g->col);
 }
 
-void text_enter(Editor *e, GapBuffer *g) {
-  gb_enter(g);
-  e->should_refresh = true;
-  /*if (e->screen_line >= e->screen_h - 8)
-    e->pad_pos_y++;
-  else
-    e->screen_line++;
-  */
-}
-
 void text_backspace(Editor *e, GapBuffer *g) {
   u32 maxlines = g->maxlines;
   i32 amount = 1;
@@ -754,7 +744,8 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
     e->should_refresh = true;
   }
   else if (c == CTRL('o') || c == LK_ENTER) {
-    text_enter(e, g);
+    gb_enter(g);
+    e->should_refresh = true;
     e->dirty = true;
   }
   else if (c == CTRL('p')) {

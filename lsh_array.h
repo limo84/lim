@@ -12,9 +12,11 @@ typedef struct {
   u16 el_size;
   u32 cap;
   u32 inc;
-  u32 length;
   void *data;
+  u32 length;
 } Array;
+
+i8 array_init(Array *a, u16 el_size, u32 cap, u32 inc);
 
 void array_fill(Array *a, u32 length, void *data);
 
@@ -26,6 +28,18 @@ void *array_get(Array *a, u32 idx);
 // -----------------------------------------------------------
 
 #ifdef LSH
+
+i8 array_init(Array *a, u16 el_size, u32 cap, u32 inc) {
+  a->el_size = el_size;
+  a->cap = cap;
+  a->inc = inc;
+  a->length = 0;
+  a->data = malloc(el_size * cap);
+  if (!a->data)
+    return -1;
+  return 0;
+}
+
 
 void array_fill(Array *a, u32 length, void *data) {
   a->data = malloc(a->cap * a->el_size); 

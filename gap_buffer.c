@@ -9,6 +9,7 @@
 
 #define LSH
 #include "lsh_logger.h"
+#include "lsh_array.h"
 
 #if 1 // for later implementation of editors without ncurses
 #include <ncurses.h>
@@ -16,7 +17,12 @@
 
 #include "files.h"
 
+#ifdef LOGGER
 #define LOG_DEBUG(fmt, ...) logger_log(fmt __VA_OPT__(,) __VA_ARGS__)
+#else
+#define LOG_DEBUG(fmt, ...)
+#endif
+
 #define ASSERT(c) assert(c)
 #define MY_ASSERT(c, s, p) if (!(c)) { printf(s, p); exit(1); } 
 
@@ -89,7 +95,9 @@ typedef struct {
   u16 wanted_offset;  // the offset tried to be restored when moving up or down
   u32 sel_start;      // selection point 1
   u32 sel_end;        // selection point 2
-  u32 search_point;
+  //u32 search_point;
+  Array sps;
+  u32 sps_index;
 } GapBuffer;
 
 
@@ -103,13 +111,17 @@ void gb_init(GapBuffer *g, u32 init_cap) {
   g->wanted_offset = 0;
   g->sel_start = UINT32_MAX;
   g->sel_end = UINT32_MAX;
-  g->search_point = 0;
+  //g->search_point = 0;
+  if (array_init(&g->sps, sizeof(u32), 50, 10) < 0)
+    die("no memory");
+  g->sps_index = 0;
 }
 
 // ********************* #DEFINITIONS **************************
 
 void gb_get_line_col(GapBuffer *g, u16 *line, u16 *col, u32 pos);
 void gb_get_point(GapBuffer *g, u16 line, u16 col);
+
 // ********************* #MOVE **************************
 
 u32 gb_gap(GapBuffer *g) {
@@ -395,22 +407,32 @@ void gb_get_line_col(GapBuffer *g, u16 *line, u16 *col, u32 pos) {
 
 bool __compare__(GapBuffer *g, u32 offset, char *needle) {
   for (int i = 0; needle[i]; i++)
-    if (gb_get_char(g, offset + i) != needle[i]) return false;
+    if (gb_get_char(g, offset + i) != needle[i])
+      return false;
   return true;
 }
 
-bool gb_search(GapBuffer *g, char *s, u32 start, u16 *line, u16 *col) {
+u32 gb_search(GapBuffer *g, char *s, u32 start, u16 *line, u16 *col) {
   if (!s || !s[0])
     return false;
   if (strlen(s) <= 2)
     return false;
-  for (; start < g->size; start++) {
-    if (__compare__(g, start, s)) {
-      gb_get_line_col(g, line, col, start);
-      return true;
+  g->sps.length = 0;
+  g->sps_index = 0;
+  for (u32 i = 0; i < g->size; i++) {
+    if (__compare__(g, i, s)) {
+      array_add(&g->sps, 1, &i); 
     }
   }
-  return false;
+  if (g->sps.length) {
+    u32 *first = array_get(&g->sps, 0);
+    for (int k = 0; k < g->sps.length; k++) {
+      u32 *tmp = array_get(&g->sps, k);
+      LOG_DEBUG("%d\n", *tmp);
+    }
+    gb_get_line_col(g, line, col, *first);
+  }
+  return g->sps.length;
 }
 
 // TODO

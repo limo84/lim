@@ -82,6 +82,7 @@ typedef struct {
   u16 search_line;
   u16 search_col;
   char *search_string;
+  u32 search_index;
   char goto_string[GOTO_MAX];
   u8 goto_index;
   bool should_refresh; // if the editor should refresh
@@ -158,6 +159,7 @@ void editor_init(Editor *e) {
     die ("cant alloc");
   e->search_point = 0;
   e->search_string = malloc(1024); //TODO
+  e->search_index = 0;
   e->search_line = 0;
   e->search_col = 0;
   if (!e->search_string) 
@@ -806,15 +808,23 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
   else if (c == CTRL('v')) {
     text_paste(e, g);
   }
+  else if (c == CTRL('n')) {
+    if (g->sps.length) {
+      g->sps_index = (g->sps_index + 1) % g->sps.length;
+      u32 *p = array_get(&g->sps, g->sps_index);
+      g->point = *p;
+      gb_get_line_col(g, &g->line, &g->col, g->point);
+    }
+  }
 }
 
 /************************** #MAIN ********************************/
 
 int main(int argc, char **argv) {
-  
-  logger_open_logfile("./logfile.log");
+  #ifdef LOGGER
+    logger_open_logfile("./logfile.log");
+  #endif
   ncurses_init();
-  
   Editor e;
   editor_init(&e);
   set_dark_mode(&e);

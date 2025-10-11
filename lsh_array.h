@@ -13,10 +13,21 @@ typedef struct {
   u32 cap;
   u32 inc;
   u32 length;
-  void* data;
+  void *data;
 } Array;
 
-void array_fill(Array *a, u32 length, void* data) {
+void array_fill(Array *a, u32 length, void *data);
+
+void array_add(Array *a, u32 length, void *data);
+
+void *array_get(Array *a, u32 idx);
+
+
+// -----------------------------------------------------------
+
+#ifdef LSH
+
+void array_fill(Array *a, u32 length, void *data) {
   a->data = malloc(a->cap * a->el_size); 
   a->length = length;
   // check increase
@@ -27,19 +38,27 @@ void array_fill(Array *a, u32 length, void* data) {
   memcpy(a->data, data, a->length * a->el_size);
 }
 
-void array_add(Array *a, u32 length, void* data) { 
+void array_add(Array *a, u32 length, void *data) { 
+  int len_old = a->length;
   a->length += length;
   // check increase
   if (a->length > a->cap) {
     for (; a->length > a->cap; a->cap += a->inc);
     a->data = realloc(a->data, a->cap * a->el_size);
   }
-  memcpy(a->data, data, a->length * a->el_size);
+  memcpy(a->data + len_old * a->el_size, data, a->length * a->el_size);
 }
 
 void* array_get(Array *a, u32 idx) {
   return a->data + idx * a->el_size;
 }
+
+#endif
+
+
+// ---------------------------------------------------------
+
+#ifdef LSH_TEST
 
 typedef struct {
   u8 age;
@@ -60,18 +79,15 @@ int main() {
     Person *p = (Person*) array_get(&people_array, i);
     printf("%s is %d years old.\n", p->name, p->age);
   }
-  Person p = {31, "Gregor"};
-  array_add(&people_array, 1, &p);
+  //Person p = {31, "Gregor"};
+  //array_add(&people_array, 1, &p);
+  array_add_one(people_array, Person, {32, "Gregor"});
   for (int i = 0; i < people_array.length; i++) {
     //Person *p = (Person*) (people_array.data + i);
     Person *p = (Person*) array_get(&people_array, i);
     printf("%s is %d years old.\n", p->name, p->age);
   }
 }
-
-#ifdef LSH
-
-
 
 #endif
 #endif

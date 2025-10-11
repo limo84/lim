@@ -312,14 +312,12 @@ void text_backspace(Editor *e, GapBuffer *g) {
     e->should_refresh = true;
     gb_clear_selection(g);
   }
-  //e->should_refresh = gb_backspace(g, amount);
 }
 
 void text_paste(Editor *e, GapBuffer *g) {
   gb_jump(g);
   u32 len = strlen(e->p_buffer);
   gb_check_increase(g, len);
-  //die("len: %d", len);
   strncpy(g->buf + g->point, e->p_buffer, len);
   g->front += len;
   g->size += len;

@@ -586,6 +586,16 @@ void check_pad_sizes(Editor *e, GapBuffer *g) {
   wresize(e->textPad, e->pad_h, e->text_pad_w);
 }
 
+// apply COLOR_PAIR(colpair) to n columns starting at pad row r, col c
+void color_pad_range(WINDOW *pad, int r, int c, int n, int colpair) {
+  for (int i = 0; i < n; ++i) {
+    chtype ch = mvwinch(pad, r, c + i);
+    if (ch == (chtype)ERR) break;                // out of bounds
+    chtype chonly = ch & A_CHARTEXT;             // strip attributes
+    mvwaddch(pad, r, c + i, chonly | COLOR_PAIR(colpair));
+  }
+}
+
 void draw_editor(Editor *e, GapBuffer *g, int c) {
 
   if (e->state == TEXT && e->should_refresh) {
@@ -594,6 +604,15 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     print_text_area(e, g);
   }
 
+  if (g->sps.length) {
+    u32 len = strlen(e->search_string);
+    u16 row, col;
+    for (u32 i = 0; i < g->sps.length; i++) {
+      u32 *p = (u32*) array_get(&g->sps, i);
+      gb_get_line_col(g, &row, &col, *p);
+      color_pad_range(e->textPad, row, col, len, 2);
+    }
+  }
   update_cursor(e, g);
 
   if (e->refresh_bar) {
@@ -601,7 +620,6 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     // MOVE CURSOR OUT OF STATUS_BAR
     wmove(e->textPad, g->line, g->col);
   }
-
   prefresh(e->linePad, e->pad_pos_y, 0, 0, 0, e->screen_h - 2, 4);
   prefresh(e->textPad, e->pad_pos_y, e->pad_pos_x, 0, 4, e->screen_h - 2, e->screen_w - 1);
 
@@ -611,14 +629,12 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     print_files(e);
     wrefresh(e->popupArea);
   }
-
   if (e->state == SEARCH && e->should_refresh) {
     wclear(e->popupArea);
     wresize(e->popupArea, 3, 40);
     print_search_window(e);
     wrefresh(e->popupArea);
   }
-
   if (e->state == GOTO && e->should_refresh) {
     wclear(e->popupArea);
     wresize(e->popupArea, 3, 40);

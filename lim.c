@@ -99,23 +99,31 @@ typedef struct {
 } Editor;
 
 void set_dark_mode(Editor *e) {
-  init_pair(1, COLOR_WHITE, COLOR_BLACK);
-  init_pair(2, COLOR_GREEN, COLOR_BLACK);
-  init_pair(3, COLOR_RED, COLOR_BLACK);
-  init_pair(4, COLOR_BLUE, COLOR_BLACK);
-  init_pair(5, COLOR_YELLOW, COLOR_BLACK);
-  init_pair(6, COLOR_WHITE, COLOR_BLUE);
-  init_pair(7, COLOR_BLACK, COLOR_WHITE);
-  init_pair(8, COLOR_CYAN, COLOR_BLACK);
 
-  e->mode.text = COLOR_PAIR(1); 
-  e->mode.type = COLOR_PAIR(2); 
-  e->mode.keyword = COLOR_PAIR(3); 
-  e->mode.comment = COLOR_PAIR(4); 
-  e->mode.lines = COLOR_PAIR(5); 
-  e->mode.bar = COLOR_PAIR(6);
-  e->mode.selected = COLOR_PAIR(7);
-  e->mode.string = COLOR_PAIR(8);
+  for (u8 i = 0; i < 8; i++) {
+    for (u8 j = 0; j < 8; j++) {
+      init_pair(i * 8 + j, j, i);
+    }
+  }
+
+  // INVERTED AUTOMATICALLY (B, B) -> (W, B) 
+  // 0 = BLACK
+  // 1 = RED
+  // 2 = GREEN
+  // 3 = YELLOW
+  // 4 = BLUE
+  // 5 = PURPLE
+  // 6 = TEAL
+  // 7 = WHITE
+
+  e->mode.text = COLOR_PAIR(007);
+  e->mode.type = COLOR_PAIR(002);
+  e->mode.keyword = COLOR_PAIR(001);
+  e->mode.comment = COLOR_PAIR(004);
+  e->mode.lines = COLOR_PAIR(003);
+  e->mode.bar = COLOR_PAIR(047);
+  e->mode.selected = COLOR_PAIR(070);
+  e->mode.string = COLOR_PAIR(006);
 
   wbkgd(e->linePad, e->mode.lines);
   wbkgd(e->textPad, e->mode.text);

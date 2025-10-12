@@ -597,13 +597,11 @@ void color_pad_range(WINDOW *pad, int r, int c, int n, int colpair) {
 }
 
 void draw_editor(Editor *e, GapBuffer *g, int c) {
-
   if (e->state == TEXT && e->should_refresh) {
     check_pad_sizes(e, g);
     draw_line_area(e, g); // maybe separate bool for this ?
     print_text_area(e, g);
   }
-
   if (g->sps.length) {
     u32 len = strlen(e->search_string);
     u16 row, col;
@@ -614,7 +612,6 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     }
   }
   update_cursor(e, g);
-
   if (e->refresh_bar) {
     print_status_line(g, e, c);
     // MOVE CURSOR OUT OF STATUS_BAR
@@ -622,7 +619,6 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
   }
   prefresh(e->linePad, e->pad_pos_y, 0, 0, 0, e->screen_h - 2, 4);
   prefresh(e->textPad, e->pad_pos_y, e->pad_pos_x, 0, 4, e->screen_h - 2, e->screen_w - 1);
-
   if (e->state == OPEN && e->should_refresh) {
     wclear(e->popupArea);
     wresize(e->popupArea, 40, 80);

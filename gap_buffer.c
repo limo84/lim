@@ -26,6 +26,7 @@
 #define ASSERT(c) assert(c)
 #define MY_ASSERT(c, s, p) if (!(c)) { printf(s, p); exit(1); } 
 
+// TODO Why is this in gapbuffer.c ??
 #define CTRL(c) ((c) & 037)
 #define STR_Q 17
 #define LK_NEWLINE 10
@@ -34,6 +35,7 @@
 #define LK_DOWN 258
 #define LK_RIGHT 67
 #define LK_LEFT 68
+#define LK_ESCAPE 27
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))

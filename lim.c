@@ -595,12 +595,15 @@ void check_pad_sizes(Editor *e, GapBuffer *g) {
 }
 
 // apply COLOR_PAIR(colpair) to n columns starting at pad row r, col c
-void color_pad_range(WINDOW *pad, int r, int c, int n, int colpair) {
+void color_pad_range(WINDOW *pad, int r, int c, int n, bool active) {
   for (int i = 0; i < n; ++i) {
     chtype ch = mvwinch(pad, r, c + i);
-    if (ch == (chtype)ERR) break;                // out of bounds
-    chtype chonly = ch & A_CHARTEXT;             // strip attributes
-    mvwaddch(pad, r, c + i, chonly | COLOR_PAIR(colpair));
+    if (ch == (chtype)ERR)
+      break;
+    chtype chonly = ch & A_CHARTEXT;
+    chtype attrs = ch & A_ATTRIBUTES;
+    chtype color = ch & A_COLOR;
+    mvwaddch(pad, r, c + i, chonly | COLOR_PAIR(active ? 020 : 030));
   }
 }
 
@@ -616,7 +619,8 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     for (u32 i = 0; i < g->sps.length; i++) {
       u32 *p = (u32*) array_get(&g->sps, i);
       gb_get_line_col(g, &row, &col, *p);
-      color_pad_range(e->textPad, row, col, len, 2);
+      bool active = g->point >= *p && g->point <= *p + len;
+      color_pad_range(e->textPad, row, col, len, active);
     }
   }
   update_cursor(e, g);
@@ -698,6 +702,10 @@ void handle_search_state_keys(Editor *e, GapBuffer *g, int c) {
   }
   else if (c == CTRL('o') || c == LK_ENTER) {
     e->state = TEXT;
+  }
+  else if (c == CTRL('f')) {
+    g->sps.length = 0;
+    e->state = TEXT;  
   }
   e->should_refresh = true;
 }
@@ -834,6 +842,15 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
       u32 *p = array_get(&g->sps, g->sps_index);
       g->point = *p;
       gb_get_line_col(g, &g->line, &g->col, g->point);
+
+      u32 len = strlen(e->search_string);
+      u16 row, col;
+      for (u32 i = 0; i < g->sps.length; i++) {
+        p = (u32*) array_get(&g->sps, i);
+        gb_get_line_col(g, &row, &col, *p);
+        bool active = g->point >= *p && g->point <= *p + len;
+        color_pad_range(e->textPad, row, col, len, active);
+      }
     }
   }
 }

@@ -696,11 +696,14 @@ void handle_search_state_keys(Editor *e, GapBuffer *g, int c) {
     e->search_string[e->search_point++] = c;
     if (gb_search(g, e->search_string, 0, &e->search_line, &e->search_col)) {
       //die("found at (%d, %d)", e->search_line, e->search_col);
-      g->line = e->search_line;
-      g->col = e->search_col;
+      //g->line = e->search_line;
+      //g->col = e->search_col;
     }
   }
   else if (c == CTRL('o') || c == LK_ENTER) {
+    u32 *p = array_get(&g->sps, g->sps_index);
+    g->point = *p;
+    gb_get_line_col(g, &g->line, &g->col, g->point);
     e->state = TEXT;
   }
   else if (c == CTRL('f')) {

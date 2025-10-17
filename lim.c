@@ -608,7 +608,7 @@ void color_pad_range(WINDOW *pad, int r, int c, int n, bool active) {
 }
 
 void draw_editor(Editor *e, GapBuffer *g, int c) {
-  if (e->state == TEXT && e->should_refresh) {
+  if (e->should_refresh && (e->state == TEXT || e->state == SEARCH)) {
     check_pad_sizes(e, g);
     draw_line_area(e, g); // maybe separate bool for this ?
     print_text_area(e, g);
@@ -694,17 +694,17 @@ void handle_open_state_keys(Editor *e, GapBuffer *g, int c) {
 void handle_search_state_keys(Editor *e, GapBuffer *g, int c) {
   if (c >= 32 && c <= 126) {
     e->search_string[e->search_point++] = c;
-    if (gb_search(g, e->search_string, 0, &e->search_line, &e->search_col)) {
-      //die("found at (%d, %d)", e->search_line, e->search_col);
-      //g->line = e->search_line;
-      //g->col = e->search_col;
-    }
+    if (e->search_point > 1) // TODO bug, when > 0
+      gb_search(g, e->search_string, 0, &e->search_line, &e->search_col);
   }
   else if (c == CTRL('o') || c == LK_ENTER) {
     u32 *p = array_get(&g->sps, g->sps_index);
     g->point = *p;
     gb_get_line_col(g, &g->line, &g->col, g->point);
     e->state = TEXT;
+  }
+  else if (e->search_point > 0 && (c == CTRL('u') || c == KEY_BACKSPACE)) {
+    e->search_string[--e->search_point] = 0;
   }
   else if (c == CTRL('f')) {
     g->sps.length = 0;
@@ -736,6 +736,7 @@ void check_selected(Editor *e, GapBuffer *g) {
     e->should_refresh = true;
   }
 }
+
 
 void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
   e->refresh_bar = true;

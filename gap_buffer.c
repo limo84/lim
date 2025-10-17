@@ -417,9 +417,8 @@ bool __compare__(GapBuffer *g, u32 offset, char *needle) {
 u32 gb_search(GapBuffer *g, char *s, u32 start, u16 *line, u16 *col) {
   if (!s || !s[0])
     return false;
-  if (strlen(s) <= 2)
-    return false;
   g->sps.length = 0;
+  //array_free(g->sps);
   g->sps_index = 0;
   for (u32 i = 0; i < g->size; i++) {
     if (__compare__(g, i, s)) {

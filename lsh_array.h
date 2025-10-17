@@ -40,6 +40,10 @@ i8 array_init(Array *a, u16 el_size, u32 cap, u32 inc) {
   return 0;
 }
 
+void array_free(Array a) {
+  free(a.data);
+  a.data = NULL;
+}
 
 void array_fill(Array *a, u32 length, void *data) {
   a->data = malloc(a->cap * a->el_size); 
@@ -53,6 +57,8 @@ void array_fill(Array *a, u32 length, void *data) {
 }
 
 void array_add(Array *a, u32 length, void *data) { 
+  if (a->data == NULL)
+    a->data = malloc(a->cap * a->el_size);
   int len_old = a->length;
   a->length += length;
   // check increase

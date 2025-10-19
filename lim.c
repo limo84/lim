@@ -311,19 +311,6 @@ void update_cursor(Editor *e, GapBuffer *g) {
   wmove(e->textPad, g->line, g->col);
 }
 
-void text_backspace(Editor *e, GapBuffer *g) {
-  u32 maxlines = g->maxlines;
-  i32 amount = 1;
-  if (g->sel_start != UINT32_MAX) {
-    amount = g->sel_end - g->sel_start;
-    amount = ABS(amount);
-    if (g->sel_end < g->sel_start)
-      gb_move_right(g, amount);
-    e->should_refresh = true;
-    gb_clear_selection(g);
-  }
-}
-
 void text_paste(Editor *e, GapBuffer *g) {
   gb_jump(g);
   u32 len = strlen(e->p_buffer);
@@ -350,8 +337,6 @@ bool is_char_in(char c, char f, ...) {
 void print_c_file(Editor *e, GapBuffer *g) {
   
   char *token = malloc(1024); // TODO errors, size
-  u32 sel_1 = MIN(g->sel_start, g->sel_end);
-  u32 sel_2 = MAX(g->sel_start, g->sel_end);
 
   // TODO Better tokenizing
   // TODO Numbers teal
@@ -362,11 +347,6 @@ void print_c_file(Editor *e, GapBuffer *g) {
   
   for (u32 i = 0; i < g->size; i++) {
     char c = gb_get_char(g, i);
-    if (i >= sel_1 && i < sel_2) {
-      wattrset(e->textPad, e->mode.selected);
-      waddch(e->textPad, c);
-      continue;
-    }
 
     if (is_line_comment) {
       if (c == LK_NEWLINE) {
@@ -465,14 +445,8 @@ void print_c_file(Editor *e, GapBuffer *g) {
 }
 
 void print_normal(Editor *e, GapBuffer *g) {
-  u32 sel_1 = MIN(g->sel_start, g->sel_end);
-  u32 sel_2 = MAX(g->sel_start, g->sel_end);
-
+  wattrset(e->textPad, e->mode.text);
   for (u32 i = 0; i < g->size; i++) {
-    if (i >= sel_1 && i < sel_2)
-      wattrset(e->textPad, e->mode.selected);
-    else
-      wattrset(e->textPad, e->mode.text);
     waddch(e->textPad, gb_get_char(g, i));
   }
 }
@@ -533,8 +507,8 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   //wprintw(e->statArea, ", maxcols: %d", g->maxcols);
 
 
-  //wprintw(e->statArea, ", sel_s: %d", g->sel_start);
-  //wprintw(e->statArea, ", sel_e: %d", g->sel_end);
+  wprintw(e->statArea, ", sel_l: %d", g->sel_left);
+  wprintw(e->statArea, ", sel_r: %d", g->sel_right);
   wprintw(e->statArea, ", p: %s", e->p_buffer);
   
   //wprintw(e->statArea, ", maxl: %d", g->maxlines);
@@ -595,15 +569,21 @@ void check_pad_sizes(Editor *e, GapBuffer *g) {
 }
 
 // apply COLOR_PAIR(colpair) to n columns starting at pad row r, col c
-void color_pad_range(WINDOW *pad, int r, int c, int n, bool active) {
-  for (int i = 0; i < n; ++i) {
-    chtype ch = mvwinch(pad, r, c + i);
+void color_pad_range(GapBuffer *g, WINDOW *pad, u32 p, u32 len, u8 color) {
+  u16 row, col;
+  gb_get_line_col(g, &row, &col, p);
+  for (int i = 0; i < len; ++i) {
+    char c = gb_get_char(g, p + i);
+    if (c == '\n') {
+      row++;
+      col = 0;
+    }
+    chtype ch = mvwinch(pad, row, col);
     if (ch == (chtype)ERR)
       break;
     chtype chonly = ch & A_CHARTEXT;
-    chtype attrs = ch & A_ATTRIBUTES;
-    chtype color = ch & A_COLOR;
-    mvwaddch(pad, r, c + i, chonly | COLOR_PAIR(active ? 020 : 030));
+    mvwaddch(pad, row, col, chonly | COLOR_PAIR(color));
+    col++;
   }
 }
 
@@ -615,13 +595,23 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
   }
   if (g->sps.length) {
     u32 len = strlen(e->search_string);
-    u16 row, col;
+    //u16 row, col;
     for (u32 i = 0; i < g->sps.length; i++) {
       u32 *p = (u32*) array_get(&g->sps, i);
-      gb_get_line_col(g, &row, &col, *p);
+      //gb_get_line_col(g, &row, &col, *p);
       bool active = g->point >= *p && g->point <= *p + len;
-      color_pad_range(e->textPad, row, col, len, active);
+      color_pad_range(g, e->textPad, *p, len, active ? 020 : 030);
     }
+  }
+  if (gb_has_selection(g)) { 
+    if (g->point < g->sel_left) {
+      g->sel_left = g->point;
+    }
+    else if (g->point > g->sel_left) {
+      g->sel_right = g->point;
+    }
+    u32 len = g->sel_right + 1 - g->sel_left;
+    color_pad_range(g, e->textPad, g->sel_left, len, 070);
   }
   update_cursor(e, g);
   if (e->refresh_bar) {
@@ -731,10 +721,9 @@ void handle_goto_state_keys(Editor *e, GapBuffer *g, int c) {
 }
 
 void check_selected(Editor *e, GapBuffer *g) {
-  if (g->sel_start != UINT32_MAX) {
-    g->sel_end = g->point;
+  /*if (g->left != UINT32_MAX) {
     e->should_refresh = true;
-  }
+  }*/
 }
 
 
@@ -815,12 +804,13 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
     e->should_refresh = true;
   } 
   else if (c == CTRL('d')) {
-    if (g->sel_start == UINT32_MAX) {
-      g->sel_start = g->sel_end = g->point;
+    if (!gb_has_selection(g)) {
+      g->sel_left = g->point;
+      g->sel_right = g->point;
       set_cursor_shape(STEADY_BLOCK);
     }
     else {
-      g->sel_start = g->sel_end = UINT32_MAX;
+      gb_clear_selection(g);
       set_cursor_shape(BLINKING_BAR);
       e->should_refresh = true;
     }
@@ -848,12 +838,13 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
       gb_get_line_col(g, &g->line, &g->col, g->point);
 
       u32 len = strlen(e->search_string);
-      u16 row, col;
+      //u16 row, col;
       for (u32 i = 0; i < g->sps.length; i++) {
         p = (u32*) array_get(&g->sps, i);
-        gb_get_line_col(g, &row, &col, *p);
+        //gb_get_line_col(g, &row, &col, *p);
         bool active = g->point >= *p && g->point <= *p + len;
-        color_pad_range(e->textPad, row, col, len, active);
+        //color_pad_range(e->textPad, row, col, len, active, 020, 030);
+        color_pad_range(g, e->textPad, *p, len, active ? 020 : 030);
       }
     }
   }

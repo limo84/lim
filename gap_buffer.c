@@ -95,8 +95,8 @@ typedef struct {
   u16 maxlines;       // number of maxlines of current buffer
   u16 maxcols;        // maximum width (in cols) the textpad needs
   u16 wanted_offset;  // the offset tried to be restored when moving up or down
-  u32 sel_start;      // selection point 1
-  u32 sel_end;        // selection point 2
+  u32 sel_left;       // selection point 1
+  u32 sel_right;
   //u32 search_point;
   Array sps;
   u32 sps_index;
@@ -111,8 +111,8 @@ void gb_init(GapBuffer *g, u32 init_cap) {
   g->maxlines = 1;
   g->maxcols = 20;
   g->wanted_offset = 0;
-  g->sel_start = UINT32_MAX;
-  g->sel_end = UINT32_MAX;
+  g->sel_left = UINT32_MAX;
+  g->sel_right = UINT32_MAX;
   //g->search_point = 0;
   if (array_init(&g->sps, sizeof(u32), 50, 10) < 0)
     die("no memory");
@@ -151,11 +151,12 @@ char gb_get_current(GapBuffer *g) {
 }
 
 bool gb_has_selection(GapBuffer *g) {
-  return g->sel_start != UINT32_MAX; 
+  return g->sel_left != UINT32_MAX; 
 }
 
 void gb_clear_selection(GapBuffer *g) {
-  g->sel_start = g->sel_end = UINT32_MAX;
+  g->sel_left = UINT32_MAX;
+  g->sel_right = UINT32_MAX;
 }
 
 void gb_check_increase(GapBuffer *g, u32 amount) {
@@ -336,13 +337,13 @@ void gb_tab(GapBuffer *g, u8 tabsize) {
 
 // TODO
 u32 gb_backspace(GapBuffer *g) {
-  u32 amount = MIN(1, g->point);
+  /*u32 amount = MIN(1, g->point);
   if (gb_has_selection(g)) {
-    u32 sel_left = g->sel_start;
-    u32 sel_right = g->sel_end + 1;
-    if (g->sel_start > g->sel_end) {
-      sel_left = g->sel_end;
-      sel_right = g->sel_start;
+    u32 sel_left = g->sel_point;
+    u32 sel_right = g->point + 1;
+    if (g->sel_point > g->point) {
+      sel_left = g->sel_point + 1;
+      sel_right = g->point;
     }
     amount = sel_right - sel_left;
     g->point = MIN(sel_right, g->size);
@@ -351,12 +352,12 @@ u32 gb_backspace(GapBuffer *g) {
   gb_jump(g);
   g->size -= amount;
   gb_get_line_col(g, &g->line, &g->col, g->point);
-  return amount;
+  return amount;*/
 }
 
 // TODO check cap before !!!
 void gb_copy(GapBuffer *g, char* p_buffer, u32 cap) {
-  u32 sel_left;
+  /*u32 sel_left;
   u32 sel_right;
   memset(p_buffer, 0, cap);
   if (!gb_has_selection(g)) {
@@ -371,11 +372,11 @@ void gb_copy(GapBuffer *g, char* p_buffer, u32 cap) {
   gb_move_right(g, sel_right - g->point); // to move all of the string to frontbuffer
   gb_jump(g);
   strncpy(p_buffer, g->buf + sel_left, len);
-  p_buffer[len + 1] = 0;
+  p_buffer[len + 1] = 0;*/
 }
 
 void gb_cut(GapBuffer *g, char* p_buffer, u32 cap) {
-  u32 sel_left;
+  /*u32 sel_left;
   u32 sel_right;
   memset(p_buffer, 0, cap);
   if (!gb_has_selection(g)) {
@@ -391,7 +392,7 @@ void gb_cut(GapBuffer *g, char* p_buffer, u32 cap) {
   gb_jump(g);
   strncpy(p_buffer, g->buf + sel_left, len);
   p_buffer[len + 1] = 0;
-  gb_backspace(g);
+  gb_backspace(g);*/
 }
 
 // is this performant enough?

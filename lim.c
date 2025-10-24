@@ -83,6 +83,7 @@ typedef struct {
   u16 search_col;
   char *search_string;
   u32 search_index;
+  bool research;
   char goto_string[GOTO_MAX];
   u8 goto_index;
   bool should_refresh; // if the editor should refresh
@@ -168,6 +169,7 @@ void editor_init(Editor *e) {
   e->search_point = 0;
   e->search_string = malloc(1024); //TODO
   e->search_index = 0;
+  e->research = false;
   e->search_line = 0;
   e->search_col = 0;
   if (!e->search_string) 
@@ -700,6 +702,8 @@ void handle_search_state_keys(Editor *e, GapBuffer *g, int c) {
   }
   else if (e->search_point > 0 && (c == CTRL('u') || c == KEY_BACKSPACE)) {
     e->search_string[--e->search_point] = 0;
+    if (e->search_point > 1) // TODO bug, when > 0
+      gb_search(g, e->search_string, 0, &e->search_line, &e->search_col);
   }
   else if (c == CTRL('f')) {
     g->sps.length = 0;
@@ -853,6 +857,10 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
       }
     }
   }
+
+  if (e->search_point > 1) { // TODO bug, when > 0 
+    gb_search(g, e->search_string, 0, &e->search_line, &e->search_col);
+  }
 }
 
 /************************** #MAIN ********************************/
@@ -898,6 +906,7 @@ int main(int argc, char **argv) {
 
   int c = -1;
   do {
+    // UPDATE EDITOR
     if (c == KEY_RESIZE) {
       getmaxyx(stdscr, e.screen_h, e.screen_w);
       //e.text_pad_w = e.screen_w - e.line_pad_w;
@@ -922,7 +931,9 @@ int main(int argc, char **argv) {
         die("no state");
     }
     //get_functions(&g);
+    // DRAW EDITOR
     draw_editor(&e, &g, c);
+    // PREPARE NEXT STEP
     e.should_refresh = false;
     e.refresh_bar = false;
     c = wgetch(e.textPad);

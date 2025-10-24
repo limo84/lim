@@ -154,9 +154,9 @@ bool gb_has_selection(GapBuffer *g) {
   return g->sel_left != UINT32_MAX; 
 }
 
-u16 gb_count_lines(GapBuffer *g, u32 start, u32 end) {
+u16 gb_count_lines(GapBuffer *g, u32 start, u32 length) {
   u16 lines = 0;
-  for (u32 pos = start; pos < end; pos++) {
+  for (u32 pos = start; pos < start + length; pos++) {
     if (gb_get_char(g, pos) == LK_NEWLINE)
       lines++;
   }
@@ -346,22 +346,21 @@ void gb_tab(GapBuffer *g, u8 tabsize) {
 
 // TODO
 u32 gb_backspace(GapBuffer *g) {
-  /*u32 amount = MIN(1, g->point);
+  u32 amount = MIN(1, g->point);
   if (gb_has_selection(g)) {
-    u32 sel_left = g->sel_point;
-    u32 sel_right = g->point + 1;
-    if (g->sel_point > g->point) {
-      sel_left = g->sel_point + 1;
-      sel_right = g->point;
+    if (g->point < g->sel_left) {
+      amount = g->sel_left - g->point;
     }
-    amount = sel_right - sel_left;
-    g->point = MIN(sel_right, g->size);
+    else {
+      amount = g->point - g->sel_left;
+      g->point = g->sel_left;
+    }
   }
-  g->point -= amount;
+  g->maxlines -= gb_count_lines(g, g->point, amount);
   gb_jump(g);
   g->size -= amount;
   gb_get_line_col(g, &g->line, &g->col, g->point);
-  return amount;*/
+  return amount;
 }
 
 // TODO check cap before !!!

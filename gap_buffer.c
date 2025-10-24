@@ -96,7 +96,7 @@ typedef struct {
   u16 maxcols;        // maximum width (in cols) the textpad needs
   u16 wanted_offset;  // the offset tried to be restored when moving up or down
   u32 sel_left;       // selection point 1
-  u32 sel_right;
+  //u32 sel_right;
   //u32 search_point;
   Array sps;
   u32 sps_index;
@@ -112,7 +112,7 @@ void gb_init(GapBuffer *g, u32 init_cap) {
   g->maxcols = 20;
   g->wanted_offset = 0;
   g->sel_left = UINT32_MAX;
-  g->sel_right = UINT32_MAX;
+  //g->sel_right = UINT32_MAX;
   //g->search_point = 0;
   if (array_init(&g->sps, sizeof(u32), 50, 10) < 0)
     die("no memory");
@@ -154,9 +154,18 @@ bool gb_has_selection(GapBuffer *g) {
   return g->sel_left != UINT32_MAX; 
 }
 
+u16 gb_count_lines(GapBuffer *g, u32 start, u32 end) {
+  u16 lines = 0;
+  for (u32 pos = start; pos < end; pos++) {
+    if (gb_get_char(g, pos) == LK_NEWLINE)
+      lines++;
+  }
+  return lines;
+}
+
 void gb_clear_selection(GapBuffer *g) {
   g->sel_left = UINT32_MAX;
-  g->sel_right = UINT32_MAX;
+  //g->sel_right = UINT32_MAX;
 }
 
 void gb_check_increase(GapBuffer *g, u32 amount) {

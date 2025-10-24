@@ -508,7 +508,7 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
 
 
   wprintw(e->statArea, ", sel_l: %d", g->sel_left);
-  wprintw(e->statArea, ", sel_r: %d", g->sel_right);
+  //wprintw(e->statArea, ", sel_r: %d", g->sel_right);
   wprintw(e->statArea, ", p: %s", e->p_buffer);
   
   //wprintw(e->statArea, ", maxl: %d", g->maxlines);
@@ -603,15 +603,19 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
       color_pad_range(g, e->textPad, *p, len, active ? 020 : 030);
     }
   }
-  if (gb_has_selection(g)) { 
+  if (gb_has_selection(g)) {
     if (g->point < g->sel_left) {
-      g->sel_left = g->point;
+      u32 len = ABS(g->sel_left - g->point); 
+      //g->sel_left = g->point;
+      color_pad_range(g, e->textPad, g->point, len, 070);
     }
     else if (g->point > g->sel_left) {
-      g->sel_right = g->point;
+      u32 len = ABS(g->point - g->sel_left); 
+      color_pad_range(g, e->textPad, g->sel_left, len, 070);
+      //g->sel_right = g->point;
     }
-    u32 len = g->sel_right + 1 - g->sel_left;
-    color_pad_range(g, e->textPad, g->sel_left, len, 070);
+    //u32 len = g->sel_right + 1 - g->sel_left;
+    //color_pad_range(g, e->textPad, g->sel_left, len, 070);
   }
   update_cursor(e, g);
   if (e->refresh_bar) {
@@ -806,7 +810,7 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
   else if (c == CTRL('d')) {
     if (!gb_has_selection(g)) {
       g->sel_left = g->point;
-      g->sel_right = g->point;
+      //g->sel_right = g->point;
       set_cursor_shape(STEADY_BLOCK);
     }
     else {

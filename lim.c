@@ -588,6 +588,7 @@ void color_pad_range(GapBuffer *g, WINDOW *pad, u32 p, u32 len, u8 color) {
 }
 
 void draw_editor(Editor *e, GapBuffer *g, int c) {
+  e->should_refresh = true;
   if (e->should_refresh && (e->state == TEXT || e->state == SEARCH)) {
     check_pad_sizes(e, g);
     draw_line_area(e, g); // maybe separate bool for this ?
@@ -610,7 +611,7 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
       color_pad_range(g, e->textPad, g->point, len, 070);
     }
     else if (g->point > g->sel_left) {
-      u32 len = ABS(g->point - g->sel_left); 
+      u32 len = ABS(g->point - g->sel_left);
       color_pad_range(g, e->textPad, g->sel_left, len, 070);
       //g->sel_right = g->point;
     }

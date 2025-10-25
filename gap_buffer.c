@@ -356,11 +356,20 @@ u32 gb_backspace(GapBuffer *g) {
       g->point = g->sel_left;
     }
   }
+  else
+    g->point -= 1;
   g->maxlines -= gb_count_lines(g, g->point, amount);
   gb_jump(g);
   g->size -= amount;
   gb_get_line_col(g, &g->line, &g->col, g->point);
   return amount;
+}
+
+void gb_del(GapBuffer *g) {
+  if (gb_has_selection(g))
+    return;
+  gb_jump(g);
+  g->size -= 1;
 }
 
 // TODO check cap before !!!
@@ -381,7 +390,6 @@ void gb_copy(GapBuffer *g, char* p_buffer, u32 cap) {
 }
 
 void gb_cut(GapBuffer *g, char* p_buffer, u32 cap) {
-  
   u32 amount = MIN(1, g->point);
   if (gb_has_selection(g)) {
     if (g->point < g->sel_left) {
@@ -398,25 +406,6 @@ void gb_cut(GapBuffer *g, char* p_buffer, u32 cap) {
   g->size -= amount;
   gb_get_line_col(g, &g->line, &g->col, g->point);
   //return amount;
-
-
-/*u32 sel_left;
-  u32 sel_right;
-  memset(p_buffer, 0, cap);
-  if (!gb_has_selection(g)) {
-    // copy line
-    sel_left = g->point - gb_width_left(g);
-    sel_right = g->point + gb_width_right(g) + 1;
-  } else {
-    sel_left = MIN(g->sel_start, g->sel_end);
-    sel_right = MAX(g->sel_start, g->sel_end) + 1;
-  }
-  u32 len = sel_right - sel_left;
-  gb_move_right(g, sel_right - g->point); // to move all of the string to frontbuffer
-  gb_jump(g);
-  strncpy(p_buffer, g->buf + sel_left, len);
-  p_buffer[len + 1] = 0;
-  gb_backspace(g);*/
 }
 
 // is this performant enough?
@@ -459,6 +448,27 @@ u32 gb_search(GapBuffer *g, char *s, u32 start, u16 *line, u16 *col) {
     gb_get_line_col(g, line, col, *first);
   }
   return g->sps.length;
+}
+
+void gb_comment_lines(GapBuffer *g) {
+  if (gb_has_selection(g)) {
+    // gb_comment_multiple()
+    return;
+  }
+  u32 old_point = g->point;
+  g->point -= gb_width_left(g);
+  if (gb_get_char(g, g->point) == '/' && gb_get_char(g, g->point + 1) == '/') {
+    gb_del(g);
+    gb_del(g);
+    g->point = old_point - 2;
+  }
+  else {
+    gb_insert_char(g, '/');
+    gb_insert_char(g, '/');
+    g->point = old_point + 2;
+  }
+  // TODO MOVE NEXT LINE TO END OF UPDATE?
+  gb_get_line_col(g, &g->line, &g->col, g->point);
 }
 
 // TODO

@@ -857,6 +857,9 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
       }
     }
   }
+  else if (c == CTRL('t')) {
+    gb_comment_lines(g);
+  }
 
   if (e->search_point > 1) { // TODO bug, when > 0 
     gb_search(g, e->search_string, 0, &e->search_line, &e->search_col);

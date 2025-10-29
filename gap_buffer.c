@@ -344,8 +344,7 @@ void gb_tab(GapBuffer *g, u8 tabsize) {
   g->maxcols = MAX(g->maxcols, g->col);
 }
 
-// TODO
-u32 gb_backspace(GapBuffer *g) {
+u32 _adjust_selection(GapBuffer *g) {
   u32 amount = MIN(1, g->point);
   if (gb_has_selection(g)) {
     if (g->point < g->sel_left) {
@@ -356,7 +355,24 @@ u32 gb_backspace(GapBuffer *g) {
       g->point = g->sel_left;
     }
   }
+  return amount + 1;
+}
+
+u32 gb_backspace(GapBuffer *g) {
+  /*u32 amount = MIN(1, g->point);
+  if (gb_has_selection(g)) {
+    if (g->point < g->sel_left) {
+      amount = g->sel_left - g->point;
+    }
+    else {
+      amount = g->point - g->sel_left;
+      g->point = g->sel_left;
+    }
+  }
   else
+    g->point -= 1;*/
+  u32 amount = _adjust_selection(g);
+  if (!gb_has_selection(g))
     g->point -= 1;
   g->maxlines -= gb_count_lines(g, g->point, amount);
   gb_jump(g);
@@ -374,38 +390,34 @@ void gb_del(GapBuffer *g) {
 
 // TODO check cap before !!!
 void gb_copy(GapBuffer *g, char* p_buffer, u32 cap) {
-  u32 amount = MIN(1, g->point);
-  if (gb_has_selection(g)) {
-    if (g->point < g->sel_left) {
-      amount = g->sel_left - g->point;
-    }
-    else {
-      amount = g->point - g->sel_left;
-      g->point = g->sel_left;
-    }
-  }
+  u32 amount = _adjust_selection(g);
   gb_jump(g);
-  strncpy(p_buffer, g->buf + g->point, amount);
-  //return amount;
+  snprintf(p_buffer, amount, "%s", g->buf + g->point);
+  p_buffer[amount] = 0;
+  LOG_DEBUG("%s", p_buffer);
+  g->point += amount;
+  gb_get_line_col(g, &g->line, &g->col, g->point);
 }
 
 void gb_cut(GapBuffer *g, char* p_buffer, u32 cap) {
-  u32 amount = MIN(1, g->point);
-  if (gb_has_selection(g)) {
-    if (g->point < g->sel_left) {
-      amount = g->sel_left - g->point;
-    }
-    else {
-      amount = g->point - g->sel_left;
-      g->point = g->sel_left;
-    }
-  }
-  g->maxlines -= gb_count_lines(g, g->point, amount);
+  u32 amount = _adjust_selection(g);
   gb_jump(g);
   strncpy(p_buffer, g->buf + g->point, amount);
+  p_buffer[amount] = 0;
+  g->maxlines -= gb_count_lines(g, g->point, amount);
   g->size -= amount;
   gb_get_line_col(g, &g->line, &g->col, g->point);
-  //return amount;
+}
+
+void gb_paste(GapBuffer *g, char *p_buffer) {
+  gb_jump(g);
+  u32 len = strlen(p_buffer);
+  gb_check_increase(g, len);
+  strncpy(g->buf + g->point, p_buffer, len);
+  g->front += len;
+  g->size += len;
+  gb_move_right(g, len);
+  gb_count_limits(g);
 }
 
 // is this performant enough?

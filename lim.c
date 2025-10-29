@@ -482,17 +482,17 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   #if DEBUG_BAR
   wprintw(e->statArea, "last: %d", c);
   //wprintw(e->statArea, ", fn: %s", e->filename);
-  wprintw(e->statArea, ", ed: (%d, %d)", g->line+1, g->col+1);
+  //wprintw(e->statArea, ", ed: (%d, %d)", g->line+1, g->col+1);
   u16 line, col;
   gb_get_line_col(g, &line, &col, g->point);
   wprintw(e->statArea, ", ed2: (%d, %d)", line+1, col+1);
   
-  wprintw(e->statArea, ", point: %d", g->point);
+  //wprintw(e->statArea, ", point: %d", g->point);
   //wprintw(e->statArea, ", pos: %d", gb_pos(g, g->point));
   
-  wprintw(e->statArea, ", front: %d", g->front);
+  //wprintw(e->statArea, ", front: %d", g->front);
   //wprintw(e->statArea, ", C: %d", gb_get_current(g));
-  wprintw(e->statArea, ", size: %d", g->size);
+  //wprintw(e->statArea, ", size: %d", g->size);
   //wprintw(e->statArea, ", cap: %d", g->cap);
   
   // TEXT_PAD_Y
@@ -509,7 +509,7 @@ int print_status_line(GapBuffer *g, Editor *e, int c) {
   //wprintw(e->statArea, ", maxcols: %d", g->maxcols);
 
 
-  wprintw(e->statArea, ", sel_l: %d", g->sel_left);
+  //wprintw(e->statArea, ", sel_l: %d", g->sel_left);
   //wprintw(e->statArea, ", sel_r: %d", g->sel_right);
   wprintw(e->statArea, ", p: %s", e->p_buffer);
   
@@ -837,7 +837,9 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
     set_cursor_shape(BLINKING_BAR);
   }
   else if (c == CTRL('v')) {
-    text_paste(e, g);
+    gb_paste(g, e->p_buffer);
+    e->should_refresh = true;
+    //text_paste(e, g);
   }
   else if (c == CTRL('n')) {
     if (g->sps.length) {

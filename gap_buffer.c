@@ -95,7 +95,7 @@ typedef struct {
   u16 maxlines;       // number of maxlines of current buffer
   u16 maxcols;        // maximum width (in cols) the textpad needs
   u16 wanted_offset;  // the offset tried to be restored when moving up or down
-  u32 sel_left;       // selection point 1
+  u32 sel_point;       // selection point 1
   //u32 sel_right;
   //u32 search_point;
   Array sps;
@@ -111,7 +111,7 @@ void gb_init(GapBuffer *g, u32 init_cap) {
   g->maxlines = 1;
   g->maxcols = 20;
   g->wanted_offset = 0;
-  g->sel_left = UINT32_MAX;
+  g->sel_point = UINT32_MAX;
   //g->sel_right = UINT32_MAX;
   //g->search_point = 0;
   if (array_init(&g->sps, sizeof(u32), 50, 10) < 0)
@@ -151,7 +151,7 @@ char gb_get_current(GapBuffer *g) {
 }
 
 bool gb_has_selection(GapBuffer *g) {
-  return g->sel_left != UINT32_MAX; 
+  return g->sel_point != UINT32_MAX; 
 }
 
 u16 gb_count_lines(GapBuffer *g, u32 start, u32 length) {
@@ -164,7 +164,7 @@ u16 gb_count_lines(GapBuffer *g, u32 start, u32 length) {
 }
 
 void gb_clear_selection(GapBuffer *g) {
-  g->sel_left = UINT32_MAX;
+  g->sel_point = UINT32_MAX;
   //g->sel_right = UINT32_MAX;
 }
 
@@ -337,30 +337,21 @@ void gb_tab(GapBuffer *g, u8 tabsize) {
 u32 _adjust_selection(GapBuffer *g) {
   u32 amount = MIN(1, g->point);
   if (gb_has_selection(g)) {
-    if (g->point < g->sel_left) {
-      amount = g->sel_left - g->point;
+    if (g->point < g->sel_point) {
+      amount = g->sel_point + 1 - g->point;
+      g->point = g->sel_point + 1;
+      gb_jump(g);
     }
     else {
-      amount = g->point - g->sel_left;
-      g->point = g->sel_left;
+      amount = g->point + 1 - g->sel_point;
+      g->point += 1;
+      gb_jump(g);
     }
   }
-  return amount + 1;
+  return amount;
 }
 
-u32 gb_backspace(GapBuffer *g) {
-  /*u32 amount = MIN(1, g->point);
-  if (gb_has_selection(g)) {
-    if (g->point < g->sel_left) {
-      amount = g->sel_left - g->point;
-    }
-    else {
-      amount = g->point - g->sel_left;
-      g->point = g->sel_left;
-    }
-  }
-  else
-    g->point -= 1;*/
+u32 gb_backspace(GapBuffer *g) { 
   u32 amount = _adjust_selection(g);
   if (!gb_has_selection(g))
     g->point -= 1;
@@ -381,28 +372,30 @@ void gb_del(GapBuffer *g) {
 // TODO check cap before !!!
 void gb_copy(GapBuffer *g, char* p_buffer, u32 cap) {
   u32 amount = _adjust_selection(g);
-  gb_jump(g);
-  snprintf(p_buffer, amount, "%s", g->buf + g->point);
+  strncpy(p_buffer, g->buf + g->point - amount, amount);
   p_buffer[amount] = 0;
+  //die("%d\n%s", amount, p_buffer);
   LOG_DEBUG("%s", p_buffer);
-  g->point += amount;
   gb_get_line_col(g, &g->line, &g->col, g->point);
 }
 
 void gb_cut(GapBuffer *g, char* p_buffer, u32 cap) {
   u32 amount = _adjust_selection(g);
-  gb_jump(g);
-  strncpy(p_buffer, g->buf + g->point, amount);
+  strncpy(p_buffer, g->buf + g->point - amount, amount);
   p_buffer[amount] = 0;
-  g->maxlines -= gb_count_lines(g, g->point, amount);
+  g->maxlines -= gb_count_lines(g, g->point - amount, amount);
   g->size -= amount;
+  g->front -= amount;
+  g->point -= amount;
   gb_get_line_col(g, &g->line, &g->col, g->point);
 }
 
 void gb_paste(GapBuffer *g, char *p_buffer) {
   gb_jump(g);
   u32 len = strlen(p_buffer);
+  //die("len: %d", len);
   gb_check_increase(g, len);
+  //die("%s", p_buffer);
   strncpy(g->buf + g->point, p_buffer, len);
   g->front += len;
   g->size += len;

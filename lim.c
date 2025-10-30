@@ -607,14 +607,14 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     }
   }
   if (gb_has_selection(g)) {
-    if (g->point < g->sel_left) {
-      u32 len = ABS(g->sel_left - g->point); 
+    if (g->point < g->sel_point) {
+      u32 len = g->sel_point + 1 - g->point; 
       //g->sel_left = g->point;
       color_pad_range(g, e->textPad, g->point, len, 070);
     }
-    else if (g->point > g->sel_left) {
-      u32 len = ABS(g->point - g->sel_left);
-      color_pad_range(g, e->textPad, g->sel_left, len, 070);
+    else if (g->point > g->sel_point) {
+      u32 len = g->point + 1 - g->sel_point;
+      color_pad_range(g, e->textPad, g->sel_point, len, 070);
       //g->sel_right = g->point;
     }
     //u32 len = g->sel_right + 1 - g->sel_left;
@@ -730,7 +730,7 @@ void handle_goto_state_keys(Editor *e, GapBuffer *g, int c) {
 }
 
 void check_selected(Editor *e, GapBuffer *g) {
-  if (g->sel_left != UINT32_MAX) {
+  if (g->sel_point != UINT32_MAX) {
     e->should_refresh = true;
   }
 }
@@ -814,7 +814,7 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
   } 
   else if (c == CTRL('d')) {
     if (!gb_has_selection(g)) {
-      g->sel_left = g->point;
+      g->sel_point = g->point;
       //g->sel_right = g->point;
       set_cursor_shape(STEADY_BLOCK);
     }

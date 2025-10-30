@@ -570,7 +570,6 @@ void check_pad_sizes(Editor *e, GapBuffer *g) {
   wresize(e->textPad, e->pad_h, e->text_pad_w);
 }
 
-// apply COLOR_PAIR(colpair) to n columns starting at pad row r, col c
 void color_pad_range(GapBuffer *g, WINDOW *pad, u32 p, u32 len, u8 color) {
   u16 row, col;
   gb_get_line_col(g, &row, &col, p);
@@ -579,6 +578,7 @@ void color_pad_range(GapBuffer *g, WINDOW *pad, u32 p, u32 len, u8 color) {
     if (c == '\n') {
       row++;
       col = 0;
+      continue;
     }
     chtype ch = mvwinch(pad, row, col);
     if (ch == (chtype)ERR)
@@ -730,9 +730,9 @@ void handle_goto_state_keys(Editor *e, GapBuffer *g, int c) {
 }
 
 void check_selected(Editor *e, GapBuffer *g) {
-  /*if (g->left != UINT32_MAX) {
+  if (g->sel_left != UINT32_MAX) {
     e->should_refresh = true;
-  }*/
+  }
 }
 
 

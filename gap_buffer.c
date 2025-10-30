@@ -169,30 +169,21 @@ void gb_clear_selection(GapBuffer *g) {
 }
 
 void gb_check_increase(GapBuffer *g, u32 amount) {
-  
   if (g->size + amount < g->cap)
     return;
-
   u32 old_back = gb_back_start(g);
   u32 old_back_len = g->cap - old_back;
-
   while (g->size + amount >= g->cap) {
     g->cap += INIT_CAP;
   }
-
   char *tmp = realloc(g->buf, g->cap);
   if (!tmp)
     die("Not enough RAM?");
-  
   g->buf = tmp;
-  
   if (g->size == 0)
     return;
-
   // move backbuffer to end
   memmove(g->buf + gb_back_start(g), g->buf + old_back, old_back_len);
-
-  int debug = 1;
 }
 
 void gb_count_limits(GapBuffer *g) {
@@ -314,7 +305,6 @@ void gb_goto_line(GapBuffer *g, u32 line) {
   g->col = 0;
 }
 
-// TODO refactor from here
 void gb_goto_position(GapBuffer *g, u8 pos, u32 *line, u32 *col) {
   if (pos >= g->size)
     return;
@@ -483,7 +473,6 @@ void gb_comment_lines(GapBuffer *g) {
   gb_get_line_col(g, &g->line, &g->col, g->point);
 }
 
-// TODO
 // void gb_trim_trailing()  <- trim trailing whitespaces
 
 #define LINE_SIZE 1024
@@ -545,7 +534,6 @@ void gb_restore_position(GapBuffer *g, char *path, char *current_file) {
   fclose(file);
 }
 
-// TODO refactor and write in 2 steps (front, back)
 void gb_write_to_file(GapBuffer *g, char* filename) {
   if (filename == NULL)
     return;

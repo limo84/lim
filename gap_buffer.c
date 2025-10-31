@@ -359,6 +359,7 @@ u32 gb_backspace(GapBuffer *g) {
   gb_jump(g);
   g->size -= amount;
   gb_get_line_col(g, &g->line, &g->col, g->point);
+  gb_clear_selection(g);
   return amount;
 }
 
@@ -371,15 +372,24 @@ void gb_del(GapBuffer *g) {
 
 // TODO check cap before !!!
 void gb_copy(GapBuffer *g, char* p_buffer, u32 cap) {
+  if (!gb_has_selection(g)) {
+    g->sel_point = g->point - gb_width_left(g);
+    g->point += gb_width_right(g);
+  }
   u32 amount = _adjust_selection(g);
   strncpy(p_buffer, g->buf + g->point - amount, amount);
   p_buffer[amount] = 0;
   //die("%d\n%s", amount, p_buffer);
   LOG_DEBUG("%s", p_buffer);
   gb_get_line_col(g, &g->line, &g->col, g->point);
+  gb_clear_selection(g);
 }
 
 void gb_cut(GapBuffer *g, char* p_buffer, u32 cap) {
+  if (!gb_has_selection(g)) {
+    g->sel_point = g->point - gb_width_left(g);
+    g->point += gb_width_right(g);
+  }
   u32 amount = _adjust_selection(g);
   strncpy(p_buffer, g->buf + g->point - amount, amount);
   p_buffer[amount] = 0;
@@ -388,6 +398,7 @@ void gb_cut(GapBuffer *g, char* p_buffer, u32 cap) {
   g->front -= amount;
   g->point -= amount;
   gb_get_line_col(g, &g->line, &g->col, g->point);
+  gb_clear_selection(g);
 }
 
 void gb_paste(GapBuffer *g, char *p_buffer) {

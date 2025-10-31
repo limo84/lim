@@ -352,12 +352,16 @@ u32 _adjust_selection(GapBuffer *g) {
 }
 
 u32 gb_backspace(GapBuffer *g) { 
-  u32 amount = _adjust_selection(g);
-  if (!gb_has_selection(g))
+  if (!gb_has_selection(g)) {
+    g->sel_point = g->point - 1;
     g->point -= 1;
-  g->maxlines -= gb_count_lines(g, g->point, amount);
-  gb_jump(g);
+  }
+  u32 amount = _adjust_selection(g);
+  //die("%d", amount);
+  g->maxlines -= gb_count_lines(g, g->point - amount, amount);
   g->size -= amount;
+  g->front -= amount;
+  g->point -= amount;
   gb_get_line_col(g, &g->line, &g->col, g->point);
   gb_clear_selection(g);
   return amount;

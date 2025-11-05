@@ -8,8 +8,8 @@
 #include <signal.h>
 
 #define LSH
-#include "lsh_logger.h"
-#include "lsh_array.h"
+#include <lsh/lsh_logger.h>
+#include <lsh/lsh_array.h>
 
 #if 1 // for later implementation of editors without ncurses
 #include <ncurses.h>

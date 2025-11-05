@@ -872,7 +872,7 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
 
 int main(int argc, char **argv) {
   #ifdef LOGGER
-    logger_open_logfile("./logfile.log");
+    logger_set_filename("./logfile.log");
   #endif
   ncurses_init();
   Editor e;

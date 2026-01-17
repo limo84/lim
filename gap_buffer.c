@@ -98,7 +98,7 @@ typedef struct {
   u32 sel_point;       // selection point 1
   //u32 sel_right;
   //u32 search_point;
-  Array sps;
+  Array *sps;
   u32 sps_index;
 } GapBuffer;
 
@@ -114,8 +114,7 @@ void gb_init(GapBuffer *g, u32 init_cap) {
   g->sel_point = UINT32_MAX;
   //g->sel_right = UINT32_MAX;
   //g->search_point = 0;
-  if (array_init(&g->sps, sizeof(u32), 50, 10) < 0)
-    die("no memory");
+  g->sps = Array_Init(sizeof(u32), 50);
   g->sps_index = 0;
 }
 
@@ -441,23 +440,23 @@ bool __compare__(GapBuffer *g, u32 offset, char *needle) {
 u32 gb_search(GapBuffer *g, char *s, u32 start, u16 *line, u16 *col) {
   if (!s || !s[0])
     return false;
-  g->sps.length = 0;
+  g->sps->length = 0;
   //array_free(g->sps);
   g->sps_index = 0;
   for (u32 i = 0; i < g->size; i++) {
     if (__compare__(g, i, s)) {
-      array_add(&g->sps, 1, &i); 
+      Array_Add(g->sps, &i); 
     }
   }
-  if (g->sps.length) {
-    u32 *first = array_get(&g->sps, 0);
-    for (int k = 0; k < g->sps.length; k++) {
-      u32 *tmp = array_get(&g->sps, k);
+  if (g->sps->length) {
+    u32 *first = Array_Get(g->sps, 0);
+    for (int k = 0; k < g->sps->length; k++) {
+      u32 *tmp = Array_Get(g->sps, k);
       LOG_DEBUG("%d\n", *tmp);
     }
     gb_get_line_col(g, line, col, *first);
   }
-  return g->sps.length;
+  return g->sps->length;
 }
 
 void gb_comment_lines(GapBuffer *g) {

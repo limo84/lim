@@ -596,11 +596,11 @@ void draw_editor(Editor *e, GapBuffer *g, int c) {
     draw_line_area(e, g); // maybe separate bool for this ?
     print_text_area(e, g);
   }
-  if (g->sps.length) {
+  if (g->sps->length) {
     u32 len = strlen(e->search_string);
     //u16 row, col;
-    for (u32 i = 0; i < g->sps.length; i++) {
-      u32 *p = (u32*) array_get(&g->sps, i);
+    for (u32 i = 0; i < g->sps->length; i++) {
+      u32 *p = (u32*) Array_Get(g->sps, i);
       //gb_get_line_col(g, &row, &col, *p);
       bool active = g->point >= *p && g->point <= *p + len;
       color_pad_range(g, e->textPad, *p, len, active ? 020 : 030);
@@ -695,7 +695,7 @@ void handle_search_state_keys(Editor *e, GapBuffer *g, int c) {
       gb_search(g, e->search_string, 0, &e->search_line, &e->search_col);
   }
   else if (c == CTRL('o') || c == LK_ENTER) {
-    u32 *p = array_get(&g->sps, g->sps_index);
+    u32 *p = Array_Get(g->sps, g->sps_index);
     g->point = *p;
     gb_get_line_col(g, &g->line, &g->col, g->point);
     e->state = TEXT;
@@ -706,7 +706,7 @@ void handle_search_state_keys(Editor *e, GapBuffer *g, int c) {
       gb_search(g, e->search_string, 0, &e->search_line, &e->search_col);
   }
   else if (c == CTRL('f')) {
-    g->sps.length = 0;
+    g->sps->length = 0;
     e->state = TEXT;  
   }
   e->should_refresh = true;
@@ -842,16 +842,16 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
     //text_paste(e, g);
   }
   else if (c == CTRL('n')) {
-    if (g->sps.length) {
-      g->sps_index = (g->sps_index + 1) % g->sps.length;
-      u32 *p = array_get(&g->sps, g->sps_index);
+    if (g->sps->length) {
+      g->sps_index = (g->sps_index + 1) % g->sps->length;
+      u32 *p = Array_Get(g->sps, g->sps_index);
       g->point = *p;
       gb_get_line_col(g, &g->line, &g->col, g->point);
 
       u32 len = strlen(e->search_string);
       //u16 row, col;
-      for (u32 i = 0; i < g->sps.length; i++) {
-        p = (u32*) array_get(&g->sps, i);
+      for (u32 i = 0; i < g->sps->length; i++) {
+        p = (u32*) Array_Get(g->sps, i);
         //gb_get_line_col(g, &row, &col, *p);
         bool active = g->point >= *p && g->point <= *p + len;
         //color_pad_range(e->textPad, row, col, len, active, 020, 030);
@@ -872,7 +872,7 @@ void handle_text_state_keys(Editor *e, GapBuffer *g, int c) {
 
 int main(int argc, char **argv) {
   #ifdef LOGGER
-    logger_set_filename("./logfile.log");
+    logger_open_logfile("./logfile.log");
   #endif
   ncurses_init();
   Editor e;
